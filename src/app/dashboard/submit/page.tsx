@@ -91,6 +91,17 @@ export default function SubmitComplaintPage() {
         .then(data => {
           if (data.success) {
             setAiResult(data.prediction)
+          } else {
+            // API returned error, use fallback
+            setAiResult({
+              category: formData.category || 'other',
+              priority: formData.priority || 'medium',
+              department: 'Hostel Management',
+              urgency_score: 7,
+              summary: `${formData.title} - requires attention from the maintenance team`,
+              sentiment: 'frustrated',
+              suggested_action: 'Assign to maintenance staff for immediate inspection',
+            })
           }
           setAiLoading(false)
         })
