@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { createClient } from '@/lib/supabase/client'
 import { SLA_HOURS } from '@/lib/types'
+import { DuplicateDetector } from '@/components/duplicate-detector'
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'result' | 'editing'
 
@@ -41,6 +42,7 @@ export default function VoiceSubmitPage() {
   })
   const [showCamera, setShowCamera] = useState(false)
   const [capturedImages, setCapturedImages] = useState<string[]>([])
+  const [isDuplicate, setIsDuplicate] = useState(false)
 
   const handleStartListening = () => {
     reset()
@@ -135,6 +137,10 @@ export default function VoiceSubmitPage() {
   }
 
   const handleSubmit = async () => {
+    if (isDuplicate) {
+      toast.error('This complaint is already post. Spam complaints are removed.')
+      return
+    }
     if (!user) { toast.error('You must be logged in'); return }
     const supabase = createClient()
     
@@ -406,6 +412,12 @@ export default function VoiceSubmitPage() {
                 </div>
               </div>
 
+              <DuplicateDetector
+                title={editData.title}
+                description={editData.description}
+                onStatusChange={(status) => setIsDuplicate(status)}
+              />
+
               <div className="flex gap-3">
                 <button
                   onClick={handleStartOver}
@@ -509,6 +521,13 @@ export default function VoiceSubmitPage() {
                   />
                 </div>
               </div>
+
+              <DuplicateDetector
+                title={editData.title}
+                description={editData.description}
+                onStatusChange={(status) => setIsDuplicate(status)}
+              />
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setVoiceState('result')}
