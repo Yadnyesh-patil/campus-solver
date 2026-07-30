@@ -330,12 +330,34 @@ export default function VoiceSubmitPage() {
                       ))}
                     </div>
                   )}
-                  <button
-                    onClick={() => setShowCamera(true)}
-                    className="w-full py-2.5 border border-dashed border-[#EAEAEA] rounded-lg text-sm text-[#787774] hover:bg-[#F7F6F3] hover:text-[#111111] transition-colors flex items-center justify-center gap-2"
-                  >
-                    📸 Add Photo / Video Evidence
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowCamera(true)}
+                      className="flex-1 py-2.5 border border-dashed border-[#EAEAEA] rounded-lg text-sm text-[#787774] hover:bg-[#F7F6F3] hover:text-[#111111] transition-colors flex items-center justify-center gap-2"
+                    >
+                      📸 Live Camera
+                    </button>
+                    <label className="flex-1 py-2.5 border border-dashed border-[#EAEAEA] rounded-lg text-sm text-[#787774] hover:bg-[#F7F6F3] hover:text-[#111111] transition-colors flex items-center justify-center gap-2 cursor-pointer">
+                      📁 Upload File
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = e.target.files
+                          if (files) {
+                            Array.from(files).forEach(file => {
+                              const url = URL.createObjectURL(file)
+                              setCapturedImages(prev => [...prev, url])
+                            })
+                            toast.success(`${files.length} file(s) added`)
+                          }
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
