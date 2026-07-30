@@ -58,7 +58,7 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <DashboardLayout role="admin" userName="Dr. Mehra" userEmail="admin@campus.edu">
+    <DashboardLayout role="admin" userName="Dr. Rajesh Kumar" userEmail="admin@campus.edu">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

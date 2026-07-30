@@ -60,9 +60,9 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
     ],
     admin: [
       { name: 'Dashboard', href: '/admin', icon: DashboardIcon },
-      { name: 'All Complaints', href: '/admin', icon: LayersIcon },
+      { name: 'All Complaints', href: '/admin/complaints', icon: LayersIcon },
       { name: 'Analytics', href: '/admin/analytics', icon: BarChartIcon },
-      { name: 'Manage Staff', href: '/admin', icon: PersonIcon },
+      { name: 'Manage Staff', href: '/admin/staff', icon: PersonIcon },
       { name: 'Notifications', href: '/admin/notifications', icon: BellIcon },
     ],
   }
