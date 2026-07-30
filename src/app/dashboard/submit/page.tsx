@@ -79,6 +79,7 @@ export default function SubmitComplaintPage() {
   
   const [aiResult, setAiResult] = useState<any>(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [isDuplicate, setIsDuplicate] = useState(false)
 
   useEffect(() => {
     if (step === 3 && formData.title && formData.description) {
@@ -126,6 +127,10 @@ export default function SubmitComplaintPage() {
   }, [step, formData.title, formData.description, formData.category, formData.priority])
   
   const validateStep1 = () => {
+    if (isDuplicate) {
+      toast.error('This complaint is already post. Spam complaints are removed.')
+      return false
+    }
     const newErrors: Record<string, string> = {}
     if (!formData.title || formData.title.length < 10) newErrors.title = 'Title must be at least 10 characters'
     if (!formData.description || formData.description.length < 30) newErrors.description = 'Description must be at least 30 characters'
@@ -325,7 +330,7 @@ export default function SubmitComplaintPage() {
                   <DuplicateDetector
                     title={formData.title || ''}
                     description={formData.description || ''}
-                    onProceedAnyway={() => console.log('User chose to submit anyway')}
+                    onStatusChange={(hasDuplicate) => setIsDuplicate(hasDuplicate)}
                   />
 
                   <div>

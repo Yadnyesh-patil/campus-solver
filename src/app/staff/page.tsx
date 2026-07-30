@@ -101,7 +101,15 @@ export default function StaffDashboard() {
   const handleStatusChange = async (id: string, newStatus: string) => {
     const supabase = createClient();
     const updateData: any = { status: newStatus };
-    if (newStatus === 'resolved') updateData.resolved_at = new Date().toISOString();
+    if (newStatus === 'resolved') {
+      const proof = window.prompt("Please provide proof of work (e.g., a note or image link) to mark this as resolved:");
+      if (!proof) {
+        toast.error("Proof of work is required to resolve a complaint.");
+        return;
+      }
+      updateData.proof_of_work = proof;
+      updateData.resolved_at = new Date().toISOString();
+    }
     
     // Optimistic UI update
     setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus as ComplaintStatus } : c));
@@ -114,6 +122,7 @@ export default function StaffDashboard() {
         action: 'status_change',
         old_value: complaints.find(c => c.id === id)?.status,
         new_value: newStatus,
+        comment: updateData.proof_of_work ? `Proof of work: ${updateData.proof_of_work}` : undefined
       });
     }
     toast.success(`Status updated to ${STATUS_CONFIG[newStatus as ComplaintStatus]?.label || newStatus}`);

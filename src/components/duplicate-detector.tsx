@@ -2,23 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { ExclamationTriangleIcon, ArrowRightIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import { ExclamationTriangleIcon, EyeOpenIcon } from '@radix-ui/react-icons'
 import { createClient } from '@/lib/supabase/client'
 
 interface DuplicateDetectorProps {
   title: string
   description: string
-  onProceedAnyway?: () => void
+  onStatusChange?: (hasDuplicate: boolean) => void
 }
 
-export function DuplicateDetector({ title, description, onProceedAnyway }: DuplicateDetectorProps) {
+export function DuplicateDetector({ title, description, onStatusChange }: DuplicateDetectorProps) {
   const [hasDuplicate, setHasDuplicate] = useState(false)
-  const [isDismissed, setIsDismissed] = useState(false)
   const [duplicateData, setDuplicateData] = useState<any>(null)
 
   useEffect(() => {
     if (!title) {
       setHasDuplicate(false)
+      if (onStatusChange) onStatusChange(false)
       return
     }
 
@@ -48,6 +48,7 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
             if (result.isDuplicate && result.similarity > 70) {
               setHasDuplicate(true)
               setDuplicateData(result)
+              if (onStatusChange) onStatusChange(true)
               return
             }
           }
@@ -55,6 +56,7 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
         
         // Fallback or no duplicate found via API
         setHasDuplicate(false)
+        if (onStatusChange) onStatusChange(false)
         
       } catch (err) {
         // Fallback to simple string match on error
@@ -69,16 +71,16 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
               created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
             }
           })
+          if (onStatusChange) onStatusChange(true)
         } else {
           setHasDuplicate(false)
+          if (onStatusChange) onStatusChange(false)
         }
       }
     }, 800)
 
     return () => clearTimeout(timer)
-  }, [title, description])
-
-  if (isDismissed) return null
+  }, [title, description, onStatusChange])
 
   return (
     <AnimatePresence>
@@ -101,8 +103,8 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
               
               <div className="flex-1">
                 <h4 className="text-sm font-semibold text-amber-900">Potential Duplicate Detected</h4>
-                <p className="text-xs text-amber-700 mt-1 mb-3">
-                  We found a similar existing complaint in this location. Submitting duplicates may delay resolution.
+                <p className="text-sm font-bold text-red-600 mt-1 mb-3">
+                  This complaint is already post. Spam complaints are removed.
                 </p>
                 
                 <div className="bg-white/60 rounded-lg p-3 border border-amber-200/50 mb-3">
@@ -129,18 +131,6 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
                   >
                     <EyeOpenIcon className="w-3 h-3" />
                     <span>View Original</span>
-                  </button>
-                  
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setIsDismissed(true)
-                      if (onProceedAnyway) onProceedAnyway()
-                    }}
-                    className="text-xs font-medium text-amber-700 hover:text-amber-900 flex items-center space-x-1 transition-colors"
-                  >
-                    <span>Submit Anyway</span>
-                    <ArrowRightIcon className="w-3 h-3" />
                   </button>
                 </div>
               </div>

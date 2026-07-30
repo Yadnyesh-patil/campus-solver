@@ -243,13 +243,24 @@ export default function ComplaintDetailPage() {
     const currentIdx = statusOrder.indexOf(complaint.status)
     const nextStatus = statusOrder[Math.min(currentIdx + 1, statusOrder.length - 1)]
     
-    const supabase = createClient()
-    const now = new Date().toISOString()
-    
-    await supabase.from('complaints').update({ 
+    const updateData: any = { 
       status: nextStatus, 
-      updated_at: now 
-    }).eq('id', complaint.id)
+      updated_at: new Date().toISOString() 
+    }
+
+    if (nextStatus === 'resolved') {
+      const proof = window.prompt("Please provide proof of work (e.g., a note or image link) to mark this as resolved:");
+      if (!proof) {
+        toast.error("Proof of work is required to resolve a complaint.");
+        return;
+      }
+      updateData.proof_of_work = proof;
+      updateData.resolved_at = new Date().toISOString();
+    }
+    
+    const supabase = createClient()
+    
+    await supabase.from('complaints').update(updateData).eq('id', complaint.id)
     
     await supabase.from('complaint_logs').insert({ 
       complaint_id: complaint.id, 
@@ -259,13 +270,14 @@ export default function ComplaintDetailPage() {
       new_value: nextStatus 
     })
 
-    setComplaint((prev: any) => ({ ...prev, status: nextStatus }))
+    setComplaint((prev: any) => ({ ...prev, status: nextStatus, proof_of_work: updateData.proof_of_work }))
     setTimeline(prev => [...prev, {
       id: `t-${Date.now()}`,
       action: `Status changed to ${nextStatus.replace('_', ' ')}`,
       user: profile?.full_name || 'Admin Staff',
       timestamp: new Date().toLocaleString(),
-      iconType: 'progress' as IconType
+      iconType: 'progress' as any,
+      comment: updateData.proof_of_work ? `Proof of work: ${updateData.proof_of_work}` : undefined
     }])
     toast.success(`Status updated to ${nextStatus.replace('_', ' ')}`)
   }
@@ -322,6 +334,22 @@ export default function ComplaintDetailPage() {
               <div>
                 <h3 className="font-bold text-[#9C3238]">ESCALATED</h3>
                 <p className="text-sm text-[#9C3238]/80">This complaint has breached SLA and has been escalated.</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {complaint.proof_of_work && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#EDF3EC] border border-[#cce1c9] rounded-xl p-4 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <CheckCircledIcon className="w-6 h-6 text-green-700" />
+              <div>
+                <h3 className="font-bold text-green-700">Proof of Work</h3>
+                <p className="text-sm text-green-800">{complaint.proof_of_work}</p>
               </div>
             </div>
           </motion.div>
@@ -540,12 +568,41 @@ export default function ComplaintDetailPage() {
           isOpen={showCloseDialog}
           onClose={() => setShowCloseDialog(false)}
           complaintTitle={complaint.title}
-          onConfirmClose={(rating, feedback) => {
-            console.log('Closed with rating:', rating, 'feedback:', feedback)
-            setComplaint((prev: any) => ({ ...prev, status: 'closed' as any }))
+          onConfirmClose={async (rating, feedback) => {
+            const supabase = createClient()
+            await supabase.from('complaints').update({ 
+              status: 'closed',
+              student_confirmed: true 
+            }).eq('id', complaint.id)
+            
+            await supabase.from('complaint_logs').insert({ 
+              complaint_id: complaint.id, 
+              user_id: user?.id, 
+              action: 'closed_by_student', 
+              comment: `Rating: ${rating}/5. Feedback: ${feedback}`
+            })
+
+            setComplaint((prev: any) => ({ ...prev, status: 'closed' as any, student_confirmed: true }))
+            toast.success("Complaint successfully closed and verified.")
           }}
-          onReopen={() => {
-            setComplaint((prev: any) => ({ ...prev, status: 'in_progress' as any }))
+          onReopen={async () => {
+            const supabase = createClient()
+            await supabase.from('complaints').update({ 
+              status: 'in_progress',
+              student_confirmed: false 
+            }).eq('id', complaint.id)
+            
+            await supabase.from('complaint_logs').insert({ 
+              complaint_id: complaint.id, 
+              user_id: user?.id, 
+              action: 'status_change', 
+              old_value: 'resolved',
+              new_value: 'in_progress',
+              comment: 'Student rejected resolution and reopened the complaint.'
+            })
+
+            setComplaint((prev: any) => ({ ...prev, status: 'in_progress' as any, student_confirmed: false }))
+            toast.info("Complaint reopened.")
           }}
         />
       </div>

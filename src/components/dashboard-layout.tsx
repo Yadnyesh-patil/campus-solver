@@ -65,7 +65,6 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
     ],
     staff: [
       { name: 'Dashboard', href: '/staff', icon: DashboardIcon },
-      { name: 'Assigned Complaints', href: '/staff?tab=assigned', icon: ListBulletIcon },
       { name: 'Notifications', href: '/staff/notifications', icon: BellIcon },
     ],
     admin: [
@@ -117,9 +116,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
       <div className="p-4 border-t border-[#EAEAEA]">
         <button
           onClick={() => {
-            toast.success('Profile', {
-              description: `${userName} (${role}) — ${userEmail}`,
-            })
+            router.push('/profile')
           }}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F7F6F3] transition-colors cursor-pointer"
         >

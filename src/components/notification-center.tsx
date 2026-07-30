@@ -10,28 +10,95 @@ import {
   ExclamationTriangleIcon, 
   CheckCircledIcon, 
   PersonIcon,
-  UpdateIcon
+  UpdateIcon,
+  ChatBubbleIcon
 } from '@radix-ui/react-icons'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+
+import { toast } from 'sonner'
 
 export function NotificationCenter({ align = 'left', role = 'student' }: { align?: 'left' | 'right'; role?: 'student' | 'staff' | 'admin' }) {
   const { user } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const topNotificationIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!user) return
     const supabase = createClient()
-    supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20)
-      .then(({ data }) => setNotifications(data || []))
-  }, [user])
+    
+    const fetchNotifications = async () => {
+      let logsData: any[] = []
+      
+      if (role === 'student') {
+        const { data: myComplaints } = await supabase.from('complaints').select('id, title').eq('student_id', user.id)
+        if (myComplaints && myComplaints.length > 0) {
+          const ids = myComplaints.map(c => c.id)
+          const { data } = await supabase.from('complaint_logs').select('*, complaints(title)').in('complaint_id', ids).order('created_at', { ascending: false }).limit(20)
+          logsData = data || []
+        }
+      } else if (role === 'staff') {
+        const { data: myComplaints } = await supabase.from('complaints').select('id, title').eq('assigned_staff_id', user.id)
+        if (myComplaints && myComplaints.length > 0) {
+          const ids = myComplaints.map(c => c.id)
+          const { data } = await supabase.from('complaint_logs').select('*, complaints(title)').in('complaint_id', ids).order('created_at', { ascending: false }).limit(20)
+          logsData = data || []
+        }
+      } else {
+        // admin
+        const { data } = await supabase.from('complaint_logs').select('*, complaints(title)').order('created_at', { ascending: false }).limit(20)
+        logsData = data || []
+      }
 
-  const unreadCount = notifications.filter(n => !n.is_read).length
+      if (logsData && logsData.length > 0) {
+        const formatted = logsData.map((log: any) => {
+          let type = "update"
+          if (log.action === 'escalation') type = "alert"
+          if (log.action === 'assignment') type = "assignment"
+          if (log.new_value === 'resolved' || log.new_value === 'closed') type = "success"
+          if (log.action === 'comment') type = "comment"
+
+          return {
+            id: log.id,
+            title: log.action.replace('_', ' ').toUpperCase(),
+            message: log.new_value || log.comment || `Activity on complaint`,
+            created_at: log.created_at,
+            is_read: true, // For demo purposes, we will treat them as read unless we build a full read-tracking system
+            type,
+            complaint_id: log.complaint_id,
+            complaintTitle: log.complaints?.title || `C-${log.complaint_id.slice(0, 4).toUpperCase()}`
+          }
+        })
+
+        const newTopId = formatted[0].id
+        if (topNotificationIdRef.current && topNotificationIdRef.current !== newTopId) {
+          toast.info("New Notification", { description: `${formatted[0].title}: ${formatted[0].complaintTitle}` })
+          if (!isOpen) setUnreadCount(prev => prev + 1)
+        }
+        topNotificationIdRef.current = newTopId
+
+        setNotifications(formatted)
+      }
+    }
+    
+    fetchNotifications()
+    
+    const channel = supabase.channel(`notif-center-${role}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaint_logs' }, fetchNotifications)
+      .subscribe()
+      
+    return () => { supabase.removeChannel(channel) }
+  }, [user, role])
 
   useEffect(() => {
+    if (isOpen) {
+      setUnreadCount(0)
+    }
+    
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false)
@@ -48,25 +115,20 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
   }, [isOpen])
 
   const markAsRead = async (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
-    const supabase = createClient()
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    // Demo implementation
   }
 
   const markAllAsRead = async () => {
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    if (!user) return
-    const supabase = createClient()
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false)
+    // Demo implementation
   }
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'sla_warning': return <ClockIcon className="text-amber-500 w-4 h-4" />
-      case 'escalation': return <ExclamationTriangleIcon className="text-red-500 w-4 h-4" />
-      case 'status_update': return <UpdateIcon className="text-blue-500 w-4 h-4" />
+      case 'alert': return <ExclamationTriangleIcon className="text-red-500 w-4 h-4" />
+      case 'update': return <UpdateIcon className="text-blue-500 w-4 h-4" />
       case 'assignment': return <PersonIcon className="text-purple-500 w-4 h-4" />
-      case 'closed': return <CheckCircledIcon className="text-green-500 w-4 h-4" />
+      case 'success': return <CheckCircledIcon className="text-green-500 w-4 h-4" />
+      case 'comment': return <ChatBubbleIcon className="text-blue-400 w-4 h-4" />
       default: return <BellIcon className="text-gray-500 w-4 h-4" />
     }
   }
@@ -122,22 +184,19 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
                           setIsOpen(false)
                         }
                       }}
-                      className={`p-4 border-b border-[#EAEAEA] last:border-b-0 cursor-pointer transition-colors hover:bg-[#F7F6F3] flex items-start space-x-3 ${!notification.is_read ? 'bg-[#F7F6F3]/50' : 'bg-white'}`}
+                      className={`p-4 border-b border-[#EAEAEA] last:border-b-0 cursor-pointer transition-colors hover:bg-[#F7F6F3] flex items-start space-x-3 bg-white`}
                     >
                       <div className="mt-0.5 bg-white p-1.5 rounded-full border border-[#EAEAEA] shadow-sm flex-shrink-0">
                         {getIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <p className={`text-sm truncate pr-2 ${!notification.is_read ? 'font-semibold text-[#111111]' : 'font-medium text-[#787774]'}`}>
+                          <p className={`text-sm truncate pr-2 font-medium text-[#787774]`}>
                             {notification.title}
                           </p>
-                          {!notification.is_read && (
-                            <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
-                          )}
                         </div>
                         <p className="text-xs text-[#787774] leading-relaxed line-clamp-2">
-                          {notification.message}
+                          {notification.message} - {notification.complaintTitle}
                         </p>
                         <span className="text-[10px] text-[#787774]/70 mt-2 block font-medium">
                           {notification.created_at ? new Date(notification.created_at).toLocaleString() : ''}
