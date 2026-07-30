@@ -232,7 +232,7 @@ export default function AdminDashboard() {
                           >
                             Escalate
                           </button>
-                          <Link href={`/dashboard/complaint/${c.id}`} className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
+                          <Link href={`/dashboard/complaint/${c.id}?role=admin`} className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
                             View
                           </Link>
                         </td>

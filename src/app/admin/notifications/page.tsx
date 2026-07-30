@@ -38,7 +38,7 @@ export default function AdminNotificationsPage() {
   const handleMarkAsRead = (id: string, complaintId?: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
     if (complaintId) {
-      router.push(`/dashboard/complaint/${complaintId}`)
+      router.push(`/dashboard/complaint/${complaintId}?role=admin`)
     }
   }
 

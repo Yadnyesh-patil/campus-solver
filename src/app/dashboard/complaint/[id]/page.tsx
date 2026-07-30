@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { SLATimer } from '@/components/sla-timer'
@@ -149,8 +149,14 @@ export default function ComplaintDetailPage() {
     }
   }
 
+  const searchParams = useSearchParams()
+  const roleParam = searchParams.get('role') as 'student' | 'staff' | 'admin' | null
+  const role = roleParam || 'student'
+  const userNames = { student: 'Rahul Verma', staff: 'Priya Sharma', admin: 'Dr. Rajesh Kumar' }
+  const userEmails = { student: 'rahul@campus.edu', staff: 'priya@campus.edu', admin: 'admin@campus.edu' }
+
   return (
-    <DashboardLayout role="student" userName="Rahul Verma" userEmail="rahul@campus.edu">
+    <DashboardLayout role={role} userName={userNames[role]} userEmail={userEmails[role]}>
       <div className="max-w-5xl mx-auto space-y-6 pb-20">
         
         {/* Escalation Banner */}

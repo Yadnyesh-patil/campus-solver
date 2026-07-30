@@ -179,7 +179,7 @@ export default function StaffDashboard() {
                     </div>
 
                     <h3 className="text-lg font-semibold text-[#111111] leading-tight">
-                      <Link href={`/dashboard/complaint/${complaint.id}`} className="hover:underline">
+                      <Link href={`/dashboard/complaint/${complaint.id}?role=staff`} className="hover:underline">
                         {complaint.title}
                       </Link>
                     </h3>

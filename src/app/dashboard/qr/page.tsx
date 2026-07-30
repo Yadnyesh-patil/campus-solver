@@ -69,7 +69,7 @@ export default function QRCodeGeneratorPage() {
   }
 
   return (
-    <DashboardLayout role="admin" userName="Dr. Rajesh Kumar" userEmail="admin@campus.edu">
+    <DashboardLayout role="student" userName="Rahul Kumar" userEmail="rahul.k@campus.edu">
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         <div>
           <h1 className="text-2xl font-semibold text-[#111111]">Location QR Generator</h1>
