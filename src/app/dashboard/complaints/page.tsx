@@ -49,6 +49,17 @@ export default function MyComplaintsPage() {
       setLoading(false);
     };
     fetchComplaints();
+
+    const channel = supabase
+      .channel('student-complaints-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints', filter: `student_id=eq.${user.id}` }, () => {
+        fetchComplaints();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const filteredComplaints = complaints.filter(c => {

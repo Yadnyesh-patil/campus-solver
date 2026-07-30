@@ -64,6 +64,17 @@ export default function DashboardPage() {
       setLoading(false)
     }
     fetchData()
+
+    const channel = supabase
+      .channel('student-dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints', filter: `student_id=eq.${user.id}` }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   return (
