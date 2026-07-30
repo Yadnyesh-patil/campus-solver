@@ -166,7 +166,13 @@ export default function StaffDashboard() {
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#F7F6F3] text-[#111111] border border-[#EAEAEA]">
                         {complaint.category}
                       </span>
-                      <span className={\`px-2 py-0.5 rounded-full text-xs font-medium border \${PRIORITY_CONFIG[complaint.priority].bg} \${PRIORITY_CONFIG[complaint.priority].text} \${PRIORITY_CONFIG[complaint.priority].border}\`}>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium border"
+                        style={{
+                          backgroundColor: PRIORITY_CONFIG[complaint.priority].bgColor,
+                          color: PRIORITY_CONFIG[complaint.priority].color,
+                        }}
+                      >
                         {PRIORITY_CONFIG[complaint.priority].label}
                       </span>
                     </div>
@@ -196,9 +202,11 @@ export default function StaffDashboard() {
                     <select
                       value={complaint.status}
                       onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
-                      className={\`px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer outline-none focus:ring-2 focus:ring-[#EAEAEA]
-                        \${STATUS_CONFIG[complaint.status].bg} \${STATUS_CONFIG[complaint.status].text} \${STATUS_CONFIG[complaint.status].border}
-                      \`}
+                      className="px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer outline-none focus:ring-2 focus:ring-[#EAEAEA]"
+                      style={{
+                        backgroundColor: STATUS_CONFIG[complaint.status].bgColor,
+                        color: STATUS_CONFIG[complaint.status].color,
+                      }}
                     >
                       <option value="verified">Verified</option>
                       <option value="assigned">Assigned</option>
@@ -207,10 +215,7 @@ export default function StaffDashboard() {
                     </select>
 
                     {complaint.status !== "resolved" && (
-                      <div className={\`text-xs font-medium flex items-center gap-1
-                        \${complaint.deadlineStatus === 'overdue' ? 'text-red-600' : 
-                          complaint.deadlineStatus === 'urgent' ? 'text-amber-600' : 'text-[#787774]'}
-                      \`}>
+                      <div className={`text-xs font-medium flex items-center gap-1 ${complaint.deadlineStatus === 'overdue' ? 'text-red-600' : complaint.deadlineStatus === 'urgent' ? 'text-amber-600' : 'text-[#787774]'}`}>
                         <ClockIcon className="w-3.5 h-3.5" />
                         {complaint.deadline}
                       </div>

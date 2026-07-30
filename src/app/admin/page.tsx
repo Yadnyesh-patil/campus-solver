@@ -103,7 +103,7 @@ export default function AdminDashboard() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {STATS.map((stat, i) => (
-            <div key={i} className={\`p-5 rounded-xl border \${stat.bg} \${stat.border}\`}>
+            <div key={i} className={`p-5 rounded-xl border ${stat.bg} ${stat.border}`}>
               <div className="text-sm font-medium text-[#787774] mb-1">{stat.label}</div>
               <div className="text-3xl font-semibold text-[#111111]">{stat.value}</div>
             </div>
@@ -201,14 +201,16 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex flex-col gap-1.5 items-start">
-                            <span className={\`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border
-                              \${STATUS_CONFIG[c.status].bg} \${STATUS_CONFIG[c.status].text} \${STATUS_CONFIG[c.status].border}
-                            \`}>
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
+                              style={{ backgroundColor: STATUS_CONFIG[c.status].bgColor, color: STATUS_CONFIG[c.status].color }}
+                            >
                               {STATUS_CONFIG[c.status].label}
                             </span>
-                            <span className={\`px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border
-                              \${PRIORITY_CONFIG[c.priority].bg} \${PRIORITY_CONFIG[c.priority].text} \${PRIORITY_CONFIG[c.priority].border}
-                            \`}>
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
+                              style={{ backgroundColor: PRIORITY_CONFIG[c.priority].bgColor, color: PRIORITY_CONFIG[c.priority].color }}
+                            >
                               {PRIORITY_CONFIG[c.priority].label}
                             </span>
                           </div>
