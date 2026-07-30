@@ -87,9 +87,9 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
     
     fetchNotifications()
     
-    const channel = supabase.channel(`notif-center-${role}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaint_logs' }, fetchNotifications)
-      .subscribe()
+    const channel = supabase.channel(`notif-center-${role}-${Date.now()}`)
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaint_logs' }, fetchNotifications)
+    channel.subscribe()
       
     return () => { supabase.removeChannel(channel) }
   }, [user, role])
