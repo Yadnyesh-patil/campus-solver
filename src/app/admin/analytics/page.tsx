@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'motion/react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import {
   BarChart,
@@ -55,23 +56,27 @@ const statusData = [
   { name: 'Closed', value: 5, color: '#D1D5DB' },
 ];
 
-const heatmapBuildings = ['Hostel A', 'Hostel B', 'Academic Block A', 'Academic Block B', 'Library', 'Sports Complex'];
-const heatmapCategories = ['Electricity', 'Water', 'Internet', 'Hostel', 'Mess'];
-const getHeatValue = (building: string, day: string): number => {
-  let hash = 0
-  const str = `${building}-${day}`
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return Math.abs(hash) % 15
-}
+const campusZones = [
+  { name: 'Hostel A', count: 3 },
+  { name: 'Hostel B', count: 9 },
+  { name: 'Hostel C', count: 2 },
+  { name: 'Academic Block A', count: 5 },
+  { name: 'Academic Block B', count: 4 },
+  { name: 'Library', count: 1 },
+  { name: 'Sports Complex', count: 2 },
+  { name: 'Medical Center', count: 0 },
+  { name: 'Main Canteen', count: 7 },
+  { name: 'Admin Block', count: 1 },
+  { name: 'IT Center', count: 6 },
+  { name: 'Workshop', count: 3 },
+];
 
-const heatmapData = heatmapBuildings.map(building => ({
-  building,
-  ...heatmapCategories.reduce((acc, cat) => ({ ...acc, [cat]: getHeatValue(building, cat) }), {})
-}));
+const getZoneColor = (count: number) => {
+  if (count <= 2) return 'bg-[#E7F3F1] border-[#0D7A5E]/20 text-[#0D7A5E]';
+  if (count <= 5) return 'bg-[#FDF3E1] border-[#A05E03]/20 text-[#A05E03]';
+  if (count <= 8) return 'bg-[#FAECEC] border-[#973C38]/20 text-[#973C38]';
+  return 'bg-[#F4E0E0] border-[#C93C37]/20 text-[#C93C37]';
+};
 
 const staffData = [
   { name: 'Amit Sharma', assigned: 45, resolved: 42, avgTime: '4h', rate: 93 },
@@ -228,36 +233,38 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Chart 5: Heatmap (Full Width) */}
-          <div className="bg-white border border-[#EAEAEA] rounded-xl p-5 lg:col-span-2 overflow-x-auto">
-            <h2 className="font-medium text-[#111111] mb-4">Campus Complaint Heatmap</h2>
-            <div className="min-w-[600px]">
-              <div className="grid grid-cols-6 gap-1 mb-2">
-                <div className="text-xs font-medium text-[#787774]">Building</div>
-                {heatmapCategories.map(cat => (
-                  <div key={cat} className="text-xs font-medium text-[#787774] text-center">{cat}</div>
-                ))}
+          {/* Campus Zone Heatmap */}
+          <div className="bg-white border border-[#EAEAEA] rounded-xl p-5 lg:col-span-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <div>
+                <h2 className="font-medium text-[#111111]">Campus Complaint Heatmap</h2>
+                <p className="text-sm text-[#787774] mt-1">Live density of reported issues across campus zones</p>
               </div>
-              {heatmapData.map((row, i) => (
-                <div key={i} className="grid grid-cols-6 gap-1 mb-1 items-center">
-                  <div className="text-sm text-[#111111] truncate pr-2">{row.building}</div>
-                  {heatmapCategories.map(cat => {
-                    const val = (row as any)[cat];
-                    const intensity = val / 15;
-                    return (
-                      <div 
-                        key={cat} 
-                        className="h-10 rounded flex items-center justify-center text-xs font-medium transition-colors"
-                        style={{ 
-                          backgroundColor: `rgba(37, 99, 235, ${intensity * 0.8 + 0.05})`,
-                          color: intensity > 0.5 ? '#FFFFFF' : '#111111'
-                        }}
-                      >
-                        {val}
-                      </div>
-                    );
-                  })}
-                </div>
+              
+              {/* Legend */}
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#E7F3F1] border border-[#0D7A5E]/20"></div><span className="text-[#787774]">0-2</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#FDF3E1] border border-[#A05E03]/20"></div><span className="text-[#787774]">3-5</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#FAECEC] border border-[#973C38]/20"></div><span className="text-[#787774]">6-8</span></div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-[#F4E0E0] border border-[#C93C37]/20"></div><span className="text-[#787774]">9+</span></div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {campusZones.map((zone, idx) => (
+                <motion.div
+                  key={zone.name}
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: idx * 0.05, ease: "easeOut" }}
+                  className={`p-4 rounded-xl border flex flex-col justify-between aspect-[4/3] ${getZoneColor(zone.count)}`}
+                >
+                  <span className="font-medium text-sm leading-tight">{zone.name}</span>
+                  <div className="flex items-end justify-between mt-2">
+                    <span className="text-3xl font-semibold tracking-tight">{zone.count}</span>
+                    <span className="text-xs opacity-80 mb-1 font-medium">issues</span>
+                  </div>
+                </motion.div>
               ))}
             </div>
           </div>
