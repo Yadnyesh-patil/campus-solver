@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   HamburgerMenuIcon,
@@ -40,6 +41,14 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const { user, isLoading } = useAuth()
+
+  // Protect client-side navigation
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, isLoading, router])
 
   // Close sidebar on navigation on mobile
   useEffect(() => {

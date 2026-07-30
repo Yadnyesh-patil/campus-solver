@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { motion } from 'motion/react'
 import { BellIcon, UpdateIcon, ExclamationTriangleIcon, CheckCircledIcon, ChatBubbleIcon } from '@radix-ui/react-icons'
+import { useAuth } from '@/hooks/use-auth'
 
 type NotificationType = 'update' | 'alert' | 'success' | 'comment' | 'assignment'
 
@@ -57,8 +58,10 @@ export default function StaffNotificationsPage() {
     }
   }
 
+  const { profile } = useAuth();
+
   return (
-    <DashboardLayout role="staff" userName="Priya Sharma" userEmail="priya@campus.edu">
+    <DashboardLayout role="staff" userName={profile?.full_name || 'Staff'} userEmail={profile?.email || ''}>
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

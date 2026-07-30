@@ -22,11 +22,22 @@ export function RealtimeIndicator({ isConnected: isConnectedProp, showLabel = tr
     const supabase = createClient()
     const channel = supabase.channel('realtime-status')
 
+    let timeoutId: NodeJS.Timeout
+
     channel.subscribe((status) => {
-      setConnected(status === 'SUBSCRIBED')
+      if (status === 'SUBSCRIBED') {
+        clearTimeout(timeoutId)
+        setConnected(true)
+      } else {
+        // Debounce disconnects to prevent flickering
+        timeoutId = setTimeout(() => {
+          setConnected(false)
+        }, 3000)
+      }
     })
 
     return () => {
+      clearTimeout(timeoutId)
       supabase.removeChannel(channel)
     }
   }, [isConnectedProp])

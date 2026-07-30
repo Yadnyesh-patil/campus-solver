@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { DownloadIcon, Cross2Icon, LayersIcon } from '@radix-ui/react-icons'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
 
 const BUILDINGS = [
   'Hostel A', 'Hostel B', 'Hostel C', 
@@ -68,8 +69,10 @@ export default function QRCodeGeneratorPage() {
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
   }
 
+  const { profile } = useAuth();
+
   return (
-    <DashboardLayout role="student" userName="Rahul Kumar" userEmail="rahul.k@campus.edu">
+    <DashboardLayout role="student" userName={profile?.full_name || 'Student'} userEmail={profile?.email || ''}>
       <div className="max-w-6xl mx-auto p-6 space-y-8">
         <div>
           <h1 className="text-2xl font-semibold text-[#111111]">Location QR Generator</h1>

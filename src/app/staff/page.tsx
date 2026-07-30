@@ -77,6 +77,17 @@ export default function StaffDashboard() {
       setLoading(false);
     };
     fetchData();
+
+    const channel = supabase
+      .channel('staff-complaints-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints', filter: `assigned_staff_id=eq.${user.id}` }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const filteredComplaints = complaints.filter(c => {

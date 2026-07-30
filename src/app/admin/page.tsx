@@ -72,7 +72,19 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    if (!user) return;
     fetchDashboardData();
+
+    const channel = supabase
+      .channel('admin-complaints-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'complaints' }, () => {
+        fetchDashboardData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const filteredComplaints = complaints.filter(c => {
