@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   HamburgerMenuIcon,
@@ -37,6 +38,7 @@ type NavItem = {
 export function DashboardLayout({ children, role, userName, userEmail }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   // Close sidebar on navigation on mobile
   useEffect(() => {
@@ -102,19 +104,32 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
       </nav>
 
       <div className="p-4 border-t border-[#EAEAEA]">
-        <div className="flex items-center gap-3 px-3 py-2">
+        <button
+          onClick={() => {
+            toast.success('Profile', {
+              description: `${userName} (${role}) — ${userEmail}`,
+            })
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F7F6F3] transition-colors cursor-pointer"
+        >
           <div className="w-9 h-9 rounded-full bg-[#F7F6F3] flex items-center justify-center border border-[#EAEAEA]">
             <AvatarIcon className="w-5 h-5 text-[#787774]" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium text-[#111111] truncate">{userName}</p>
             <div className="flex flex-col">
                <p className="text-xs text-[#787774] truncate">{userEmail}</p>
                <span className="text-[10px] uppercase font-bold text-[#787774] mt-0.5 tracking-wider">{role}</span>
             </div>
           </div>
-        </div>
-        <button className="w-full mt-2 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#787774] hover:bg-[#FDEBEC] hover:text-[#111111] transition-colors">
+        </button>
+        <button
+          onClick={() => {
+            toast.success('Signed out successfully')
+            setTimeout(() => router.push('/login'), 800)
+          }}
+          className="w-full mt-2 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#787774] hover:bg-[#FDEBEC] hover:text-red-600 transition-colors"
+        >
           <ExitIcon className="w-4 h-4" />
           Sign Out
         </button>
