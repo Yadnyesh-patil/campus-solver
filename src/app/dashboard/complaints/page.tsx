@@ -1,51 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { MagnifyingGlassIcon, ClockIcon } from "@radix-ui/react-icons";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useAuth } from '@/hooks/use-auth'
+import { createClient } from '@/lib/supabase/client'
 
-interface Complaint {
-  id: string;
-  title: string;
-  status: "Open" | "In Progress" | "Resolved" | "Closed";
-  category: string;
-  priority: "Low" | "Medium" | "High" | "Critical";
-  location: string;
-  slaStatus: string;
-  createdAt: string;
-}
-
-const mockComplaints: Complaint[] = [
-  { id: "C-101", title: "AC Not Cooling", status: "In Progress", category: "Electrical", priority: "High", location: "Block A - Room 302", slaStatus: "On Track", createdAt: "Oct 24, 2023" },
-  { id: "C-102", title: "Broken Window Blind", status: "Resolved", category: "Carpentry", priority: "Low", location: "Library - 2nd Floor", slaStatus: "Completed", createdAt: "Oct 22, 2023" },
-  { id: "C-103", title: "Water Leakage in Washroom", status: "Open", category: "Plumbing", priority: "Critical", location: "Block B - Ground Floor", slaStatus: "Breach Risk", createdAt: "Oct 25, 2023" },
-  { id: "C-104", title: "Projector Bulb Dead", status: "Closed", category: "IT Support", priority: "Medium", location: "Lecture Hall 4", slaStatus: "Completed", createdAt: "Oct 15, 2023" },
-  { id: "C-105", title: "Wi-Fi Router Restart Required", status: "Open", category: "IT Support", priority: "Medium", location: "Hostel H1 - Room 112", slaStatus: "On Track", createdAt: "Oct 25, 2023" },
-  { id: "C-106", title: "Door Lock Jammed", status: "In Progress", category: "Carpentry", priority: "High", location: "Lab 3", slaStatus: "Escalated", createdAt: "Oct 23, 2023" },
-  { id: "C-107", title: "Flickering Tube Light", status: "Resolved", category: "Electrical", priority: "Low", location: "Block A - Corridor", slaStatus: "Completed", createdAt: "Oct 20, 2023" },
-];
-
-const STATUS_CONFIG = {
-  "Open": { bgColor: "#FDEBEC", color: "#E53935" },
-  "In Progress": { bgColor: "#FBF3DB", color: "#D97706" },
-  "Resolved": { bgColor: "#EDF3EC", color: "#16A34A" },
-  "Closed": { bgColor: "#EAEAEA", color: "#787774" }
+const STATUS_CONFIG: Record<string, { bgColor: string, color: string }> = {
+  submitted: { bgColor: "#FDEBEC", color: "#E53935" }, // Open
+  verified: { bgColor: "#FDEBEC", color: "#E53935" },
+  assigned: { bgColor: "#FBF3DB", color: "#D97706" }, // In Progress
+  in_progress: { bgColor: "#FBF3DB", color: "#D97706" },
+  resolved: { bgColor: "#EDF3EC", color: "#16A34A" },
+  closed: { bgColor: "#EAEAEA", color: "#787774" },
+  rejected: { bgColor: "#EAEAEA", color: "#787774" }
 };
+
+const getStatusConfig = (status: string) => STATUS_CONFIG[status] || STATUS_CONFIG.submitted;
+
+const getSlaStatus = (c: any) => {
+  if (c.is_escalated) return "Escalated";
+  if (c.status === "closed" || c.status === "resolved") return "Completed";
+  if (c.sla_deadline && new Date() > new Date(c.sla_deadline)) return "Breach Risk";
+  return "On Track";
+}
 
 export default function MyComplaintsPage() {
   const [filter, setFilter] = useState<"All" | "Open" | "Resolved" | "Closed">("All");
   const [search, setSearch] = useState("");
+  
+  const { user, profile } = useAuth();
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredComplaints = mockComplaints.filter(c => {
-    const matchesFilter = filter === "All" ? true : (filter === "Open" ? (c.status === "Open" || c.status === "In Progress") : c.status === filter);
-    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.id.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+  useEffect(() => {
+    if (!user) return;
+    const fetchComplaints = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('complaints')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      setComplaints(data || []);
+      setLoading(false);
+    };
+    fetchComplaints();
+  }, [user]);
+
+  const filteredComplaints = complaints.filter(c => {
+    let statusMapped = "Open";
+    if (["resolved"].includes(c.status)) {
+      statusMapped = "Resolved";
+    } else if (["closed", "rejected"].includes(c.status)) {
+      statusMapped = "Closed";
+    }
+
+    const matchesFilter = filter === "All" ? true : statusMapped === filter;
+    
+    const displayId = `CMP-${c.id.slice(0,4)}`.toLowerCase();
+    const titleMatch = (c.title || "").toLowerCase().includes(search.toLowerCase());
+    const idMatch = displayId.includes(search.toLowerCase());
+    
+    return matchesFilter && (titleMatch || idMatch);
   });
 
   return (
-    <DashboardLayout role="student" userName="Rahul Verma" userEmail="rahul@campus.edu">
+    <DashboardLayout role="student" userName={profile?.full_name || 'Student'} userEmail={profile?.email || ''}>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-semibold">My Complaints</h1>
@@ -76,69 +100,79 @@ export default function MyComplaintsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredComplaints.length === 0 ? (
+          {loading ? (
+            <div className="col-span-full text-center py-12 text-[#787774] bg-white border border-[#EAEAEA] rounded-xl">
+              Loading complaints...
+            </div>
+          ) : filteredComplaints.length === 0 ? (
             <div className="col-span-full text-center py-12 text-[#787774] bg-white border border-[#EAEAEA] rounded-xl">
               No complaints found matching your criteria.
             </div>
           ) : (
-            filteredComplaints.map((complaint, index) => (
-              <motion.div
-                key={complaint.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <Link 
-                  href={`/dashboard/complaint/${complaint.id}`}
-                  className="block h-full bg-white border border-[#EAEAEA] rounded-xl p-5 hover:shadow-sm hover:border-[#787774] transition-all group"
+            filteredComplaints.map((complaint, index) => {
+              const displayId = `CMP-${complaint.id.slice(0,4).toUpperCase()}`;
+              const slaStatus = getSlaStatus(complaint);
+              const config = getStatusConfig(complaint.status);
+              
+              return (
+                <motion.div
+                  key={complaint.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <span className="text-xs font-mono font-medium text-[#787774] bg-[#F7F6F3] px-2 py-1 rounded">
-                      {complaint.id}
-                    </span>
-                    <span 
-                      className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-                      style={{ 
-                        backgroundColor: STATUS_CONFIG[complaint.status].bgColor,
-                        color: STATUS_CONFIG[complaint.status].color 
-                      }}
-                    >
-                      {complaint.status}
-                    </span>
-                  </div>
-                  
-                  <h3 className="font-semibold text-base mb-1 group-hover:text-[#3B82F6] transition-colors line-clamp-1">
-                    {complaint.title}
-                  </h3>
-                  <p className="text-sm text-[#787774] mb-4 flex items-center gap-1.5">
-                    {complaint.location}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="text-xs px-2 py-1 bg-[#F7F6F3] text-[#111111] rounded font-medium">
-                      {complaint.category}
-                    </span>
-                    <span className="text-xs px-2 py-1 bg-[#F7F6F3] text-[#111111] rounded font-medium">
-                      {complaint.priority}
-                    </span>
-                  </div>
-
-                  <div className="pt-4 border-t border-[#EAEAEA] flex items-center justify-between text-xs text-[#787774]">
-                    <div className="flex items-center gap-1.5">
-                      <ClockIcon className="w-3.5 h-3.5" />
-                      {complaint.createdAt}
+                  <Link 
+                    href={`/dashboard/complaint/${complaint.id}`}
+                    className="block h-full bg-white border border-[#EAEAEA] rounded-xl p-5 hover:shadow-sm hover:border-[#787774] transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-xs font-mono font-medium text-[#787774] bg-[#F7F6F3] px-2 py-1 rounded">
+                        {displayId}
+                      </span>
+                      <span 
+                        className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                        style={{ 
+                          backgroundColor: config.bgColor,
+                          color: config.color 
+                        }}
+                      >
+                        {complaint.status.replace('_', ' ')}
+                      </span>
                     </div>
-                    <span className={
-                      complaint.slaStatus === "Breach Risk" || complaint.slaStatus === "Escalated" 
-                        ? "text-[#E53935] font-medium" 
-                        : ""
-                    }>
-                      {complaint.slaStatus}
-                    </span>
-                  </div>
-                </Link>
-              </motion.div>
-            ))
+                    
+                    <h3 className="font-semibold text-base mb-1 group-hover:text-[#3B82F6] transition-colors line-clamp-1">
+                      {complaint.title}
+                    </h3>
+                    <p className="text-sm text-[#787774] mb-4 flex items-center gap-1.5 line-clamp-1">
+                      {complaint.building}{complaint.room_number ? ` - ${complaint.room_number}` : ''}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="text-xs px-2 py-1 bg-[#F7F6F3] text-[#111111] rounded font-medium capitalize">
+                        {complaint.category}
+                      </span>
+                      <span className="text-xs px-2 py-1 bg-[#F7F6F3] text-[#111111] rounded font-medium capitalize">
+                        {complaint.priority}
+                      </span>
+                    </div>
+
+                    <div className="pt-4 border-t border-[#EAEAEA] flex items-center justify-between text-xs text-[#787774]">
+                      <div className="flex items-center gap-1.5">
+                        <ClockIcon className="w-3.5 h-3.5" />
+                        {new Date(complaint.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                      <span className={
+                        slaStatus === "Breach Risk" || slaStatus === "Escalated" 
+                          ? "text-[#E53935] font-medium" 
+                          : ""
+                      }>
+                        {slaStatus}
+                      </span>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })
           )}
         </div>
       </div>

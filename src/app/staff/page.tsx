@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { ComplaintStatus, ComplaintPriority, STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/types";
 import { motion } from "motion/react";
@@ -12,80 +12,72 @@ import {
   HomeIcon, 
   PersonIcon 
 } from "@radix-ui/react-icons";
-
-// Mock Data
-const MOCK_COMPLAINTS = [
-  {
-    id: "COMP-091",
-    title: "Leaking pipe in bathroom",
-    category: "Plumbing",
-    studentName: "Rahul Verma",
-    status: "assigned" as ComplaintStatus,
-    priority: "high" as ComplaintPriority,
-    building: "Block A",
-    room: "204",
-    createdAt: "2024-03-15T09:30:00",
-    deadline: "Due in 2h 15m",
-    deadlineStatus: "urgent"
-  },
-  {
-    id: "COMP-092",
-    title: "Fan regulator not working",
-    category: "Electrical",
-    studentName: "Sneha Patel",
-    status: "in_progress" as ComplaintStatus,
-    priority: "medium" as ComplaintPriority,
-    building: "Block C",
-    room: "112",
-    createdAt: "2024-03-14T14:20:00",
-    deadline: "Due in 18h 30m",
-    deadlineStatus: "normal"
-  },
-  {
-    id: "COMP-088",
-    title: "Wi-Fi router dead",
-    category: "IT/Network",
-    studentName: "Amit Kumar",
-    status: "assigned" as ComplaintStatus,
-    priority: "critical" as ComplaintPriority,
-    building: "Block B",
-    room: "405",
-    createdAt: "2024-03-15T08:00:00",
-    deadline: "Overdue by 1h",
-    deadlineStatus: "overdue"
-  },
-  {
-    id: "COMP-085",
-    title: "Broken window glass",
-    category: "Carpentry",
-    studentName: "Neha Singh",
-    status: "verified" as ComplaintStatus,
-    priority: "low" as ComplaintPriority,
-    building: "Block A",
-    room: "301",
-    createdAt: "2024-03-13T11:45:00",
-    deadline: "Due in 2 days",
-    deadlineStatus: "normal"
-  },
-  {
-    id: "COMP-079",
-    title: "AC not cooling",
-    category: "Electrical",
-    studentName: "Vikram Raj",
-    status: "resolved" as ComplaintStatus,
-    priority: "high" as ComplaintPriority,
-    building: "Block D",
-    room: "510",
-    createdAt: "2024-03-12T16:10:00",
-    deadline: "Completed",
-    deadlineStatus: "completed"
-  }
-];
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
 
 export default function StaffDashboard() {
+  const { user, profile } = useAuth();
   const [filter, setFilter] = useState("All");
-  const [complaints, setComplaints] = useState(MOCK_COMPLAINTS);
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+    const fetchData = async () => {
+      const { data } = await supabase
+        .from('complaints')
+        .select('*, student:profiles!student_id(full_name)')
+        .eq('assigned_staff_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      // Calculate deadlines for display
+      const withDeadlines = (data || []).map(c => {
+        let deadline = 'No deadline';
+        let deadlineStatus = 'normal';
+        if (c.sla_deadline) {
+          const now = new Date();
+          const dl = new Date(c.sla_deadline);
+          const diff = dl.getTime() - now.getTime();
+          if (c.status === 'resolved' || c.status === 'closed') {
+            deadline = 'Completed';
+            deadlineStatus = 'completed';
+          } else if (diff < 0) {
+            const hours = Math.abs(Math.floor(diff / (1000 * 60 * 60)));
+            deadline = `Overdue by ${hours}h`;
+            deadlineStatus = 'overdue';
+          } else if (diff < 3 * 60 * 60 * 1000) {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            deadline = `Due in ${hours}h ${mins}m`;
+            deadlineStatus = 'urgent';
+          } else {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            deadline = `Due in ${hours}h`;
+            deadlineStatus = 'normal';
+          }
+        }
+        return {
+          ...c,
+          id: c.id,
+          title: c.title,
+          category: c.category,
+          studentName: c.student?.full_name || 'Unknown',
+          status: c.status,
+          priority: c.priority,
+          building: c.building || 'Unknown',
+          room: c.room_number || '',
+          createdAt: c.created_at,
+          deadline,
+          deadlineStatus,
+        };
+      });
+      setComplaints(withDeadlines);
+      setLoading(false);
+    };
+    fetchData();
+  }, [user]);
 
   const filteredComplaints = complaints.filter(c => {
     if (filter === "All") return true;
@@ -95,21 +87,45 @@ export default function StaffDashboard() {
     return true;
   });
 
-  const handleStatusChange = (id: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const supabase = createClient();
+    const updateData: any = { status: newStatus };
+    if (newStatus === 'resolved') updateData.resolved_at = new Date().toISOString();
+    
+    // Optimistic UI update
     setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus as ComplaintStatus } : c));
+    
+    await supabase.from('complaints').update(updateData).eq('id', id);
+    if (user) {
+      await supabase.from('complaint_logs').insert({
+        complaint_id: id,
+        user_id: user.id,
+        action: 'status_change',
+        old_value: complaints.find(c => c.id === id)?.status,
+        new_value: newStatus,
+      });
+    }
     toast.success(`Status updated to ${STATUS_CONFIG[newStatus as ComplaintStatus]?.label || newStatus}`);
   };
 
-  const handleCommentSubmit = (id: string, e: React.FormEvent) => {
+  const handleCommentSubmit = async (id: string, e: React.FormEvent) => {
     e.preventDefault();
-    if (!commentInputs[id]?.trim()) return;
+    if (!commentInputs[id]?.trim() || !user) return;
+    
+    const supabase = createClient();
+    await supabase.from('complaint_logs').insert({
+      complaint_id: id,
+      user_id: user.id,
+      action: 'comment',
+      comment: commentInputs[id].trim(),
+    });
     
     toast.success("Comment added successfully");
     setCommentInputs(prev => ({ ...prev, [id]: "" }));
   };
 
   return (
-    <DashboardLayout role="staff" userName="Priya Sharma" userEmail="priya@campus.edu">
+    <DashboardLayout role="staff" userName={profile?.full_name || 'Staff'} userEmail={profile?.email || ''}>
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Header Section */}
@@ -145,7 +161,9 @@ export default function StaffDashboard() {
 
         {/* Complaint Cards List */}
         <div className="space-y-4">
-          {filteredComplaints.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-[#787774]">Loading...</div>
+          ) : filteredComplaints.length === 0 ? (
             <div className="text-center py-12 text-[#787774]">
               No complaints found for this filter.
             </div>
@@ -170,11 +188,11 @@ export default function StaffDashboard() {
                       <span
                         className="px-2 py-0.5 rounded-full text-xs font-medium border"
                         style={{
-                          backgroundColor: PRIORITY_CONFIG[complaint.priority].bgColor,
-                          color: PRIORITY_CONFIG[complaint.priority].color,
+                          backgroundColor: PRIORITY_CONFIG[complaint.priority as ComplaintPriority]?.bgColor || '#EAEAEA',
+                          color: PRIORITY_CONFIG[complaint.priority as ComplaintPriority]?.color || '#111',
                         }}
                       >
-                        {PRIORITY_CONFIG[complaint.priority].label}
+                        {PRIORITY_CONFIG[complaint.priority as ComplaintPriority]?.label || complaint.priority}
                       </span>
                     </div>
 
@@ -207,8 +225,8 @@ export default function StaffDashboard() {
                       onChange={(e) => handleStatusChange(complaint.id, e.target.value)}
                       className="px-3 py-1.5 rounded-lg text-sm font-medium border cursor-pointer outline-none focus:ring-2 focus:ring-[#EAEAEA]"
                       style={{
-                        backgroundColor: STATUS_CONFIG[complaint.status].bgColor,
-                        color: STATUS_CONFIG[complaint.status].color,
+                        backgroundColor: STATUS_CONFIG[complaint.status as ComplaintStatus]?.bgColor || '#EAEAEA',
+                        color: STATUS_CONFIG[complaint.status as ComplaintStatus]?.color || '#111',
                       }}
                     >
                       <option value="verified">Verified</option>
