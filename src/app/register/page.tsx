@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
@@ -72,13 +72,36 @@ export default function RegisterPage() {
       });
 
       if (error) {
-        toast.error(error.message);
+        if (error.message.toLowerCase().includes('rate limit')) {
+          toast.error('Too many signups — please wait a few minutes and try again', {
+            description: 'Supabase limits confirmation emails. Try again shortly.',
+            duration: 8000,
+          });
+        } else {
+          toast.error(error.message);
+        }
         setIsLoading(false);
         return;
       }
 
-      toast.success('Account created successfully!');
-      router.push('/login');
+      // If email confirmation is disabled, user session exists — go straight to dashboard
+      if (data?.session) {
+        const roleRoutes: Record<string, string> = {
+          student: '/dashboard',
+          staff: '/staff',
+          admin: '/admin',
+        };
+        toast.success(`Welcome, ${formData.fullName}!`, {
+          description: `Signed in as ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+        });
+        router.push(roleRoutes[role] || '/dashboard');
+      } else {
+        // Email confirmation required — redirect to login
+        toast.success('Account created! Please check your email to confirm, then sign in.', {
+          duration: 6000,
+        });
+        router.push('/login');
+      }
     } catch (err: any) {
       toast.error(err?.message || 'An unexpected error occurred');
       setIsLoading(false);
