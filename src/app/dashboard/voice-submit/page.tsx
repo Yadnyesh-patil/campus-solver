@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { DashboardLayout } from '@/components/dashboard-layout'
+import { CameraCapture } from '@/components/camera-capture'
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition'
 import { toast } from 'sonner'
 
@@ -32,6 +33,8 @@ export default function VoiceSubmitPage() {
     room: '',
     priority: '',
   })
+  const [showCamera, setShowCamera] = useState(false)
+  const [capturedImages, setCapturedImages] = useState<string[]>([])
 
   const handleStartListening = () => {
     reset()
@@ -76,24 +79,49 @@ export default function VoiceSubmitPage() {
         throw new Error('AI unavailable')
       }
     } catch {
-      // Fallback
+      // Smart keyword-based fallback
+      const lowerText = text.toLowerCase()
+      let category = 'other'
+      let department = 'General Administration'
+      let priority = 'medium'
+      let urgency = 5
+      let sentiment = 'frustrated'
+
+      if (lowerText.includes('fan') || lowerText.includes('light') || lowerText.includes('switch') || lowerText.includes('electric') || lowerText.includes('power')) {
+        category = 'electricity'; department = 'Electrical Maintenance'; priority = 'high'; urgency = 7
+      } else if (lowerText.includes('water') || lowerText.includes('tap') || lowerText.includes('leak') || lowerText.includes('pipe') || lowerText.includes('plumb')) {
+        category = 'water'; department = 'Water Supply & Plumbing'; priority = 'high'; urgency = 8
+      } else if (lowerText.includes('wifi') || lowerText.includes('internet') || lowerText.includes('network') || lowerText.includes('router')) {
+        category = 'internet'; department = 'IT/Network'; priority = 'high'; urgency = 7
+      } else if (lowerText.includes('hostel') || lowerText.includes('room') || lowerText.includes('bed') || lowerText.includes('furniture') || lowerText.includes('chair')) {
+        category = 'hostel'; department = 'Hostel Management'; priority = 'medium'; urgency = 6
+      } else if (lowerText.includes('food') || lowerText.includes('mess') || lowerText.includes('canteen') || lowerText.includes('kitchen')) {
+        category = 'mess'; department = 'Mess/Canteen'; priority = 'medium'; urgency = 5
+      } else if (lowerText.includes('security') || lowerText.includes('theft') || lowerText.includes('safe')) {
+        category = 'security'; department = 'Campus Security'; priority = 'critical'; urgency = 9
+      }
+
+      // Extract building/room from text
+      const roomMatch = lowerText.match(/room\s*(\d+)/)
+      const buildingMatch = lowerText.match(/(hostel\s*[a-c]|block\s*[a-c])/i)
+
       const fallback: AIPrediction = {
-        category: 'other',
-        priority: 'medium',
-        department: 'General Administration',
-        urgency_score: 5,
+        category,
+        priority,
+        department,
+        urgency_score: urgency,
         summary: text.slice(0, 80),
-        sentiment: 'neutral',
-        suggested_action: 'Review and assign to relevant department',
+        sentiment,
+        suggested_action: `Assign to ${department} for immediate inspection`,
       }
       setAiResult(fallback)
       setEditData({
         title: text.slice(0, 80),
         description: text,
-        category: 'other',
-        building: '',
-        room: '',
-        priority: 'medium',
+        category,
+        building: buildingMatch ? buildingMatch[1].replace(/\s+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : '',
+        room: roomMatch ? roomMatch[1] : '',
+        priority,
       })
     } finally {
       setVoiceState('result')
@@ -283,6 +311,32 @@ export default function VoiceSubmitPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Evidence Upload Section */}
+                <div className="pt-3 border-t border-[#EAEAEA]">
+                  <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-3">Evidence (Optional)</p>
+                  {capturedImages.length > 0 && (
+                    <div className="flex gap-2 mb-3 flex-wrap">
+                      {capturedImages.map((img, i) => (
+                        <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-[#EAEAEA]">
+                          <img src={img} alt={`Evidence ${i + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            onClick={() => setCapturedImages(prev => prev.filter((_, idx) => idx !== i))}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/60 rounded-full text-white text-xs flex items-center justify-center hover:bg-black"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setShowCamera(true)}
+                    className="w-full py-2.5 border border-dashed border-[#EAEAEA] rounded-lg text-sm text-[#787774] hover:bg-[#F7F6F3] hover:text-[#111111] transition-colors flex items-center justify-center gap-2"
+                  >
+                    📸 Add Photo / Video Evidence
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-3">
@@ -306,6 +360,19 @@ export default function VoiceSubmitPage() {
                 </button>
               </div>
             </motion.div>
+          )}
+
+          {/* Camera Modal */}
+          {showCamera && (
+            <CameraCapture
+              onCapture={(blob) => {
+                const url = URL.createObjectURL(blob)
+                setCapturedImages(prev => [...prev, url])
+                setShowCamera(false)
+                toast.success('Evidence captured!')
+              }}
+              onClose={() => setShowCamera(false)}
+            />
           )}
 
           {/* EDITING STATE */}
