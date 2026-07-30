@@ -55,15 +55,15 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
     ],
     staff: [
       { name: 'Dashboard', href: '/staff', icon: DashboardIcon },
-      { name: 'Assigned Complaints', href: '/staff', icon: ListBulletIcon },
-      { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
+      { name: 'Assigned Complaints', href: '/staff?tab=assigned', icon: ListBulletIcon },
+      { name: 'Notifications', href: '/staff/notifications', icon: BellIcon },
     ],
     admin: [
       { name: 'Dashboard', href: '/admin', icon: DashboardIcon },
       { name: 'All Complaints', href: '/admin', icon: LayersIcon },
       { name: 'Analytics', href: '/admin/analytics', icon: BarChartIcon },
       { name: 'Manage Staff', href: '/admin', icon: PersonIcon },
-      { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
+      { name: 'Notifications', href: '/admin/notifications', icon: BellIcon },
     ],
   }
 
@@ -154,7 +154,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
         </div>
         <div className="flex items-center gap-3">
           <RealtimeIndicator />
-          <NotificationCenter />
+          <NotificationCenter align="right" />
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -mr-2 text-[#787774] hover:text-[#111111]"

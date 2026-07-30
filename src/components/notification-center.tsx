@@ -66,7 +66,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
   }
 ]
 
-export function NotificationCenter() {
+export function NotificationCenter({ align = 'left' }: { align?: 'left' | 'right' }) {
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -129,7 +129,7 @@ export function NotificationCenter() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute left-0 mt-2 w-80 bg-white rounded-xl border border-[#EAEAEA] shadow-lg overflow-hidden z-50 origin-top-left"
+            className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} mt-2 w-80 bg-white rounded-xl border border-[#EAEAEA] shadow-lg overflow-hidden z-50 ${align === 'right' ? 'origin-top-right' : 'origin-top-left'}`}
           >
             <div className="flex items-center justify-between p-4 border-b border-[#EAEAEA] bg-[#F7F6F3]/50">
               <h3 className="font-semibold text-sm text-[#111111]">Notifications</h3>

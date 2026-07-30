@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { motion } from "motion/react";
 import { BellIcon, UpdateIcon, ExclamationTriangleIcon, CheckCircledIcon, ChatBubbleIcon } from "@radix-ui/react-icons";
@@ -14,28 +15,33 @@ interface Notification {
   timestamp: string;
   read: boolean;
   type: NotificationType;
+  complaintId?: string;
 }
 
 const initialNotifications: Notification[] = [
-  { id: "1", title: "Assigned", message: "Your complaint C-101 has been assigned to Electrical Dept.", timestamp: "10 mins ago", read: false, type: "assignment" },
-  { id: "2", title: "Status Update", message: "Status update: C-101 is now In Progress.", timestamp: "1 hour ago", read: false, type: "update" },
-  { id: "3", title: "SLA Warning", message: "SLA Warning: C-103 is approaching deadline.", timestamp: "2 hours ago", read: false, type: "alert" },
-  { id: "4", title: "Resolved", message: "Your complaint C-102 has been resolved.", timestamp: "1 day ago", read: true, type: "success" },
-  { id: "5", title: "New Comment", message: "New comment on C-101 from Priya Sharma.", timestamp: "1 day ago", read: true, type: "comment" },
-  { id: "6", title: "Status Update", message: "Status update: C-104 is now Closed.", timestamp: "2 days ago", read: true, type: "update" },
-  { id: "7", title: "Assigned", message: "Your complaint C-105 has been assigned to Plumbing Dept.", timestamp: "3 days ago", read: true, type: "assignment" },
-  { id: "8", title: "SLA Escalation", message: "C-106 has been escalated to Head of Maintenance.", timestamp: "4 days ago", read: true, type: "alert" },
+  { id: "1", title: "Assigned", message: "Your complaint C-101 has been assigned to Electrical Dept.", timestamp: "10 mins ago", read: false, type: "assignment", complaintId: "1" },
+  { id: "2", title: "Status Update", message: "Status update: C-101 is now In Progress.", timestamp: "1 hour ago", read: false, type: "update", complaintId: "1" },
+  { id: "3", title: "SLA Warning", message: "SLA Warning: C-103 is approaching deadline.", timestamp: "2 hours ago", read: false, type: "alert", complaintId: "3" },
+  { id: "4", title: "Resolved", message: "Your complaint C-102 has been resolved.", timestamp: "1 day ago", read: true, type: "success", complaintId: "2" },
+  { id: "5", title: "New Comment", message: "New comment on C-101 from Priya Sharma.", timestamp: "1 day ago", read: true, type: "comment", complaintId: "1" },
+  { id: "6", title: "Status Update", message: "Status update: C-104 is now Closed.", timestamp: "2 days ago", read: true, type: "update", complaintId: "4" },
+  { id: "7", title: "Assigned", message: "Your complaint C-105 has been assigned to Plumbing Dept.", timestamp: "3 days ago", read: true, type: "assignment", complaintId: "5" },
+  { id: "8", title: "SLA Escalation", message: "C-106 has been escalated to Head of Maintenance.", timestamp: "4 days ago", read: true, type: "alert", complaintId: "6" },
 ];
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const filteredNotifications = notifications.filter(n => filter === "all" || !n.read);
 
-  const handleMarkAsRead = (id: string) => {
+  const handleMarkAsRead = (id: string, complaintId?: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    if (complaintId) {
+      router.push(`/dashboard/complaint/${complaintId}`);
+    }
   };
 
   const handleMarkAllAsRead = () => {
@@ -104,7 +110,7 @@ export default function NotificationsPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => handleMarkAsRead(notification.id)}
+                onClick={() => handleMarkAsRead(notification.id, notification.complaintId)}
                 className={`bg-white border rounded-xl p-4 flex gap-4 cursor-pointer transition-all hover:shadow-sm ${
                   !notification.read ? "border-l-4 border-l-[#3B82F6] border-y-[#EAEAEA] border-r-[#EAEAEA]" : "border-[#EAEAEA]"
                 }`}
