@@ -3,8 +3,8 @@
 > **AI-Powered Campus Grievance & Maintenance Management Platform**
 > 
 > *Built for HackIndia Summer of Codesfest 2.0 | Track 3: Campus Problem Solver*
-
-![Hero Screenshot Placeholder](/public/hero-screenshot.png) *(Add your hero image here)*
+>
+> 🌐 **[Live Demo → campus-solver-mu.vercel.app](https://campus-solver-mu.vercel.app)**
 
 ## 🛑 The Problem
 Campus complaints disappear into a black hole. Students report issues — broken lights, water leaks, network outages — but there's no transparency, no accountability, and no resolution tracking. Staff are overwhelmed with disorganized requests, and Admins lack visibility into campus-wide maintenance health.
