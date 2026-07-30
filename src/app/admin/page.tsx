@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { ComplaintStatus, ComplaintPriority, STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/types";
 import { motion, AnimatePresence } from "motion/react";
@@ -11,51 +11,74 @@ import {
   MixerHorizontalIcon,
   Cross2Icon
 } from "@radix-ui/react-icons";
-
-// Mock Data
-const STATS = [
-  { label: "Total Complaints", value: "47", bg: "bg-white", border: "border-[#EAEAEA]" },
-  { label: "Open", value: "12", bg: "bg-[#E1F3FE]", border: "border-[#b6e0fe]" },
-  { label: "In Progress", value: "8", bg: "bg-[#FBF3DB]", border: "border-[#f4e0aa]" },
-  { label: "Resolved Today", value: "5", bg: "bg-[#EDF3EC]", border: "border-[#cce1c9]" },
-  { label: "Escalated", value: "3", bg: "bg-[#FDEBEC]", border: "border-[#fabcc1]" },
-  { label: "Avg Resolution Time", value: "18.5h", bg: "bg-white", border: "border-[#EAEAEA]" }
-];
-
-const DEPARTMENTS = [
-  { name: "Hostel Management", open: 5, avgTime: "12h" },
-  { name: "Electrical", open: 3, avgTime: "8h" },
-  { name: "IT/Network", open: 2, avgTime: "24h" },
-  { name: "Water Supply", open: 1, avgTime: "6h" },
-  { name: "Mess/Canteen", open: 1, avgTime: "4h" },
-];
-
-const MOCK_COMPLAINTS = [
-  { id: "C-101", title: "No internet in Block B", student: "Arjun K.", dept: "IT/Network", staff: "Unassigned", status: "verified" as ComplaintStatus, priority: "high" as ComplaintPriority, created: "2024-03-15" },
-  { id: "C-102", title: "Geyser not working", student: "Priya S.", dept: "Electrical", staff: "Ramesh M.", status: "in_progress" as ComplaintStatus, priority: "medium" as ComplaintPriority, created: "2024-03-15" },
-  { id: "C-103", title: "Water leakage", student: "Rahul V.", dept: "Water Supply", staff: "Unassigned", status: "submitted" as ComplaintStatus, priority: "low" as ComplaintPriority, created: "2024-03-14" },
-  { id: "C-104", title: "Food quality issue", student: "Neha M.", dept: "Mess/Canteen", staff: "Sunita K.", status: "resolved" as ComplaintStatus, priority: "high" as ComplaintPriority, created: "2024-03-14" },
-  { id: "C-105", title: "Broken chair", student: "Vikram P.", dept: "Hostel Mgmt", staff: "Unassigned", status: "verified" as ComplaintStatus, priority: "low" as ComplaintPriority, created: "2024-03-13" },
-  { id: "C-106", title: "Fan making noise", student: "Aditi S.", dept: "Electrical", staff: "Ramesh M.", status: "assigned" as ComplaintStatus, priority: "medium" as ComplaintPriority, created: "2024-03-13" },
-  { id: "C-107", title: "Server downtime", student: "John D.", dept: "IT/Network", staff: "Admin", status: "in_progress" as ComplaintStatus, priority: "critical" as ComplaintPriority, created: "2024-03-12" },
-  { id: "C-108", title: "Cleaning not done", student: "Sara L.", dept: "Hostel Mgmt", staff: "Unassigned", status: "submitted" as ComplaintStatus, priority: "medium" as ComplaintPriority, created: "2024-03-12" },
-];
-
-const STAFF_MEMBERS = ["Ramesh M.", "Sunita K.", "Amit T.", "Deepak S."];
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
 
 export default function AdminDashboard() {
+  const { user, profile } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [complaints, setComplaints] = useState(MOCK_COMPLAINTS);
+  
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [stats, setStats] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [staffMembers, setStaffMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<string | null>(null);
   
   const [assignDept, setAssignDept] = useState("");
   const [assignStaff, setAssignStaff] = useState("");
 
+  const supabase = createClient();
+
+  const fetchDashboardData = async () => {
+    if (!user) return;
+    
+    // Fetch complaints
+    const { data: complaintsData } = await supabase
+      .from('complaints')
+      .select('*, student:profiles!student_id(full_name), staff:profiles!assigned_staff_id(full_name), department:departments!assigned_dept_id(name)')
+      .order('created_at', { ascending: false });
+    
+    const items = complaintsData || [];
+    setComplaints(items);
+    
+    // Compute stats
+    const open = items.filter(c => ['submitted', 'verified'].includes(c.status)).length;
+    const inProgress = items.filter(c => ['assigned', 'in_progress'].includes(c.status)).length;
+    const resolvedToday = items.filter(c => c.status === 'resolved' && c.resolved_at && new Date(c.resolved_at).toDateString() === new Date().toDateString()).length;
+    const escalated = items.filter(c => c.is_escalated).length;
+    
+    setStats([
+      { label: 'Total Complaints', value: String(items.length), bg: 'bg-white', border: 'border-[#EAEAEA]' },
+      { label: 'Open', value: String(open), bg: 'bg-[#E1F3FE]', border: 'border-[#b6e0fe]' },
+      { label: 'In Progress', value: String(inProgress), bg: 'bg-[#FBF3DB]', border: 'border-[#f4e0aa]' },
+      { label: 'Resolved Today', value: String(resolvedToday), bg: 'bg-[#EDF3EC]', border: 'border-[#cce1c9]' },
+      { label: 'Escalated', value: String(escalated), bg: 'bg-[#FDEBEC]', border: 'border-[#fabcc1]' },
+      { label: 'Avg Resolution Time', value: '—', bg: 'bg-white', border: 'border-[#EAEAEA]' },
+    ]);
+    
+    // Fetch departments
+    const { data: deptData } = await supabase.from('departments').select('*').eq('is_active', true);
+    setDepartments(deptData || []);
+    
+    // Fetch staff members
+    const { data: staffData } = await supabase.from('profiles').select('id, full_name, department').eq('role', 'staff');
+    setStaffMembers(staffData || []);
+    
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user]);
+
   const filteredComplaints = complaints.filter(c => {
+    const studentName = c.student?.full_name || '';
     const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || 
-                          c.student.toLowerCase().includes(search.toLowerCase());
+                          studentName.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -67,30 +90,72 @@ export default function AdminDashboard() {
     setAssignModalOpen(true);
   };
 
-  const handleAssignSubmit = () => {
+  const handleAssignSubmit = async () => {
     if (!assignDept || !assignStaff) {
       toast.error("Please select both department and staff");
       return;
     }
+
+    const dept = departments.find(d => d.id === assignDept);
+    const staff = staffMembers.find(s => s.id === assignStaff);
+
+    if (!dept || !staff) {
+      toast.error("Invalid department or staff selected");
+      return;
+    }
+
+    // Update in Supabase
+    const { error } = await supabase.from('complaints').update({
+      assigned_dept_id: dept.id,
+      assigned_staff_id: staff.id,
+      status: 'assigned',
+    }).eq('id', selectedComplaint);
+
+    if (error) {
+      toast.error("Failed to assign complaint");
+      console.error(error);
+      return;
+    }
+
+    // Insert log
+    await supabase.from('complaint_logs').insert({
+      complaint_id: selectedComplaint,
+      user_id: user?.id,
+      action: 'assignment',
+      new_value: `Assigned to ${staff.full_name} in ${dept.name}`,
+    });
     
-    setComplaints(prev => prev.map(c => 
-      c.id === selectedComplaint 
-        ? { ...c, staff: assignStaff, dept: assignDept, status: "assigned" as ComplaintStatus } 
-        : c
-    ));
-    
-    toast.success(`Complaint assigned to ${assignStaff} in ${assignDept}`);
+    toast.success(`Complaint assigned to ${staff.full_name} in ${dept.name}`);
     setAssignModalOpen(false);
+    fetchDashboardData();
   };
 
-  const handleEscalate = (id: string) => {
-    toast.error(`Complaint ${id} escalated to higher authority`);
+  const handleEscalate = async (id: string) => {
+    const { error } = await supabase.from('complaints').update({
+      is_escalated: true,
+      escalated_at: new Date().toISOString()
+    }).eq('id', id);
+
+    if (error) {
+      toast.error("Failed to escalate complaint");
+      return;
+    }
+
+    await supabase.from('complaint_logs').insert({
+      complaint_id: id,
+      user_id: user?.id,
+      action: 'escalation',
+      new_value: 'Complaint escalated to higher authority',
+    });
+
+    toast.success(`Complaint ${id} escalated to higher authority`);
+    fetchDashboardData();
   };
 
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <DashboardLayout role="admin" userName="Dr. Rajesh Kumar" userEmail="admin@campus.edu">
+    <DashboardLayout role="admin" userName={profile?.full_name || 'Admin'} userEmail={profile?.email || ''}>
       <div className="space-y-8">
         
         {/* Header Section */}
@@ -101,149 +166,166 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {STATS.map((stat, i) => (
-            <div key={i} className={`p-5 rounded-xl border ${stat.bg} ${stat.border}`}>
-              <div className="text-sm font-medium text-[#787774] mb-1">{stat.label}</div>
-              <div className="text-3xl font-semibold text-[#111111]">{stat.value}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Department Performance */}
-          <div className="lg:col-span-1 bg-white border border-[#EAEAEA] rounded-xl p-5 shadow-sm h-fit">
-            <h2 className="text-lg font-semibold text-[#111111] mb-4">Department Performance</h2>
-            <div className="space-y-0">
-              <div className="flex justify-between text-xs font-medium text-[#787774] pb-2 border-b border-[#EAEAEA]">
-                <span>Department</span>
-                <div className="flex gap-4">
-                  <span className="w-12 text-center">Open</span>
-                  <span className="w-12 text-right">Avg SLA</span>
-                </div>
-              </div>
-              {DEPARTMENTS.map((dept, i) => (
-                <div key={i} className="flex justify-between items-center py-3 border-b border-[#EAEAEA] last:border-0">
-                  <span className="text-sm font-medium text-[#111111]">{dept.name}</span>
-                  <div className="flex gap-4 text-sm">
-                    <span className="w-12 text-center text-[#787774]">{dept.open}</span>
-                    <span className="w-12 text-right text-[#787774]">{dept.avgTime}</span>
-                  </div>
+        {loading ? (
+          <div className="text-sm text-[#787774] py-10">Loading dashboard...</div>
+        ) : (
+          <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {stats.map((stat, i) => (
+                <div key={i} className={`p-5 rounded-xl border ${stat.bg} ${stat.border}`}>
+                  <div className="text-sm font-medium text-[#787774] mb-1">{stat.label}</div>
+                  <div className="text-3xl font-semibold text-[#111111]">{stat.value}</div>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* All Complaints Table */}
-          <div className="lg:col-span-2 bg-white border border-[#EAEAEA] rounded-xl shadow-sm flex flex-col overflow-hidden">
-            <div className="p-5 border-b border-[#EAEAEA] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-lg font-semibold text-[#111111]">All Complaints</h2>
-              
-              <div className="flex gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-48">
-                  <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#787774]" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 text-sm bg-[#F7F6F3] border border-[#EAEAEA] rounded-lg focus:outline-none focus:border-[#111111]"
-                  />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Department Performance */}
+              <div className="lg:col-span-1 bg-white border border-[#EAEAEA] rounded-xl p-5 shadow-sm h-fit">
+                <h2 className="text-lg font-semibold text-[#111111] mb-4">Department Performance</h2>
+                <div className="space-y-0">
+                  <div className="flex justify-between text-xs font-medium text-[#787774] pb-2 border-b border-[#EAEAEA]">
+                    <span>Department</span>
+                    <div className="flex gap-4">
+                      <span className="w-12 text-center">Open</span>
+                      <span className="w-12 text-right">Avg SLA</span>
+                    </div>
+                  </div>
+                  {departments.map((dept, i) => {
+                    const deptComplaints = complaints.filter(c => c.assigned_dept_id === dept.id);
+                    const openComplaints = deptComplaints.filter(c => ['assigned', 'in_progress'].includes(c.status)).length;
+                    return (
+                      <div key={i} className="flex justify-between items-center py-3 border-b border-[#EAEAEA] last:border-0">
+                        <span className="text-sm font-medium text-[#111111]">{dept.name}</span>
+                        <div className="flex gap-4 text-sm">
+                          <span className="w-12 text-center text-[#787774]">{openComplaints}</span>
+                          <span className="w-12 text-right text-[#787774]">—</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {departments.length === 0 && (
+                    <div className="py-3 text-sm text-[#787774]">No departments found.</div>
+                  )}
                 </div>
-                <div className="relative">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="appearance-none pl-8 pr-8 py-1.5 text-sm bg-white border border-[#EAEAEA] rounded-lg focus:outline-none focus:border-[#111111] cursor-pointer"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="submitted">Submitted</option>
-                    <option value="verified">Verified</option>
-                    <option value="assigned">Assigned</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
-                  <MixerHorizontalIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#787774] pointer-events-none" />
+              </div>
+
+              {/* All Complaints Table */}
+              <div className="lg:col-span-2 bg-white border border-[#EAEAEA] rounded-xl shadow-sm flex flex-col overflow-hidden">
+                <div className="p-5 border-b border-[#EAEAEA] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-lg font-semibold text-[#111111]">All Complaints</h2>
+                  
+                  <div className="flex gap-3 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-48">
+                      <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#787774]" />
+                      <input
+                        type="text"
+                        placeholder="Search..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 text-sm bg-[#F7F6F3] border border-[#EAEAEA] rounded-lg focus:outline-none focus:border-[#111111]"
+                      />
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="appearance-none pl-8 pr-8 py-1.5 text-sm bg-white border border-[#EAEAEA] rounded-lg focus:outline-none focus:border-[#111111] cursor-pointer"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="verified">Verified</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                      <MixerHorizontalIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#787774] pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-[#F7F6F3] text-[#787774] font-medium border-b border-[#EAEAEA]">
+                      <tr>
+                        <th className="px-5 py-3 font-medium">Title & ID</th>
+                        <th className="px-5 py-3 font-medium">Student</th>
+                        <th className="px-5 py-3 font-medium">Dept / Staff</th>
+                        <th className="px-5 py-3 font-medium">Status / Priority</th>
+                        <th className="px-5 py-3 font-medium">Created</th>
+                        <th className="px-5 py-3 font-medium text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#EAEAEA]">
+                      {filteredComplaints.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-5 py-8 text-center text-[#787774]">
+                            No complaints match your filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredComplaints.map((c) => (
+                          <tr key={c.id} className="hover:bg-[#F7F6F3]/50 transition-colors">
+                            <td className="px-5 py-3">
+                              <div className="font-medium text-[#111111]">{c.title}</div>
+                              <div className="text-xs text-[#787774] mt-0.5">{c.id.split('-')[0]}...</div>
+                            </td>
+                            <td className="px-5 py-3 text-[#111111]">{c.student?.full_name || 'Unknown'}</td>
+                            <td className="px-5 py-3">
+                              <div className="text-[#111111]">{c.department?.name || 'Unassigned'}</div>
+                              <div className="text-xs text-[#787774] mt-0.5">{c.staff?.full_name || 'Unassigned'}</div>
+                            </td>
+                            <td className="px-5 py-3">
+                              <div className="flex flex-col gap-1.5 items-start">
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
+                                  style={{ backgroundColor: STATUS_CONFIG[c.status as ComplaintStatus]?.bgColor || '#f3f4f6', color: STATUS_CONFIG[c.status as ComplaintStatus]?.color || '#374151' }}
+                                >
+                                  {STATUS_CONFIG[c.status as ComplaintStatus]?.label || c.status}
+                                </span>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
+                                  style={{ backgroundColor: PRIORITY_CONFIG[c.priority as ComplaintPriority]?.bgColor || '#f3f4f6', color: PRIORITY_CONFIG[c.priority as ComplaintPriority]?.color || '#374151' }}
+                                >
+                                  {PRIORITY_CONFIG[c.priority as ComplaintPriority]?.label || c.priority}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-[#787774]">{new Date(c.created_at).toLocaleDateString()}</td>
+                            <td className="px-5 py-3 text-right space-x-2">
+                              {(!c.assigned_staff_id) && c.status !== "resolved" && c.status !== "closed" && (
+                                <button
+                                  onClick={() => handleAssignClick(c.id)}
+                                  className="px-3 py-1 bg-[#111111] text-white text-xs font-medium rounded hover:bg-black transition-colors"
+                                >
+                                  Assign
+                                </button>
+                              )}
+                              {!c.is_escalated && (
+                                <button 
+                                  onClick={() => handleEscalate(c.id)}
+                                  className="px-3 py-1 bg-white border border-[#EAEAEA] text-[#111111] text-xs font-medium rounded hover:bg-[#FDEBEC] hover:border-[#fabcc1] hover:text-red-700 transition-colors"
+                                >
+                                  Escalate
+                                </button>
+                              )}
+                              <Link href={`/dashboard/complaint/${c.id}?role=admin`} className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
+                                View
+                              </Link>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-[#F7F6F3] text-[#787774] font-medium border-b border-[#EAEAEA]">
-                  <tr>
-                    <th className="px-5 py-3 font-medium">Title & ID</th>
-                    <th className="px-5 py-3 font-medium">Student</th>
-                    <th className="px-5 py-3 font-medium">Dept / Staff</th>
-                    <th className="px-5 py-3 font-medium">Status / Priority</th>
-                    <th className="px-5 py-3 font-medium">Created</th>
-                    <th className="px-5 py-3 font-medium text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EAEAEA]">
-                  {filteredComplaints.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-[#787774]">
-                        No complaints match your filters.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredComplaints.map((c) => (
-                      <tr key={c.id} className="hover:bg-[#F7F6F3]/50 transition-colors">
-                        <td className="px-5 py-3">
-                          <div className="font-medium text-[#111111]">{c.title}</div>
-                          <div className="text-xs text-[#787774] mt-0.5">{c.id}</div>
-                        </td>
-                        <td className="px-5 py-3 text-[#111111]">{c.student}</td>
-                        <td className="px-5 py-3">
-                          <div className="text-[#111111]">{c.dept}</div>
-                          <div className="text-xs text-[#787774] mt-0.5">{c.staff}</div>
-                        </td>
-                        <td className="px-5 py-3">
-                          <div className="flex flex-col gap-1.5 items-start">
-                            <span
-                              className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
-                              style={{ backgroundColor: STATUS_CONFIG[c.status].bgColor, color: STATUS_CONFIG[c.status].color }}
-                            >
-                              {STATUS_CONFIG[c.status].label}
-                            </span>
-                            <span
-                              className="px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide border"
-                              style={{ backgroundColor: PRIORITY_CONFIG[c.priority].bgColor, color: PRIORITY_CONFIG[c.priority].color }}
-                            >
-                              {PRIORITY_CONFIG[c.priority].label}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-[#787774]">{c.created}</td>
-                        <td className="px-5 py-3 text-right space-x-2">
-                          {c.staff === "Unassigned" && c.status !== "resolved" && (
-                            <button
-                              onClick={() => handleAssignClick(c.id)}
-                              className="px-3 py-1 bg-[#111111] text-white text-xs font-medium rounded hover:bg-black transition-colors"
-                            >
-                              Assign
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => handleEscalate(c.id)}
-                            className="px-3 py-1 bg-white border border-[#EAEAEA] text-[#111111] text-xs font-medium rounded hover:bg-[#FDEBEC] hover:border-[#fabcc1] hover:text-red-700 transition-colors"
-                          >
-                            Escalate
-                          </button>
-                          <Link href={`/dashboard/complaint/${c.id}?role=admin`} className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Assignment Modal Overlay */}
@@ -283,8 +365,8 @@ export default function AdminDashboard() {
                     className="w-full px-3 py-2 bg-white border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:border-[#111111]"
                   >
                     <option value="" disabled>Select Department</option>
-                    {DEPARTMENTS.map(d => (
-                      <option key={d.name} value={d.name}>{d.name}</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
                     ))}
                   </select>
                 </div>
@@ -297,8 +379,8 @@ export default function AdminDashboard() {
                     className="w-full px-3 py-2 bg-white border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:border-[#111111]"
                   >
                     <option value="" disabled>Select Staff</option>
-                    {STAFF_MEMBERS.map(s => (
-                      <option key={s} value={s}>{s}</option>
+                    {staffMembers.map(s => (
+                      <option key={s.id} value={s.id}>{s.full_name}</option>
                     ))}
                   </select>
                 </div>

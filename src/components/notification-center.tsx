@@ -12,68 +12,24 @@ import {
   PersonIcon,
   UpdateIcon
 } from '@radix-ui/react-icons'
-
-type NotificationType = 'status_update' | 'assignment' | 'escalation' | 'sla_warning' | 'closed'
-
-interface Notification {
-  id: string
-  type: NotificationType
-  title: string
-  message: string
-  timestamp: string
-  read: boolean
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    type: 'sla_warning',
-    title: 'SLA Warning: Plumbing Issue',
-    message: 'Complaint #1042 in Hostel B is approaching its SLA deadline.',
-    timestamp: '10 mins ago',
-    read: false
-  },
-  {
-    id: '2',
-    type: 'status_update',
-    title: 'Status Update',
-    message: 'Electrical maintenance has marked #1028 as "In Progress".',
-    timestamp: '1 hour ago',
-    read: false
-  },
-  {
-    id: '3',
-    type: 'assignment',
-    title: 'New Assignment',
-    message: 'You have been assigned to resolve WiFi issue in Library.',
-    timestamp: '2 hours ago',
-    read: true
-  },
-  {
-    id: '4',
-    type: 'escalation',
-    title: 'Complaint Escalated',
-    message: 'AC malfunctioning in AB-A has been escalated to management.',
-    timestamp: '5 hours ago',
-    read: true
-  },
-  {
-    id: '5',
-    type: 'closed',
-    title: 'Complaint Resolved',
-    message: 'Water leakage in Hostel A has been resolved.',
-    timestamp: '1 day ago',
-    read: true
-  }
-]
+import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 
 export function NotificationCenter({ align = 'left', role = 'student' }: { align?: 'left' | 'right'; role?: 'student' | 'staff' | 'admin' }) {
+  const { user } = useAuth()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS)
+  const [notifications, setNotifications] = useState<any[]>([])
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const unreadCount = notifications.filter(n => !n.read).length
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(20)
+      .then(({ data }) => setNotifications(data || []))
+  }, [user])
+
+  const unreadCount = notifications.filter(n => !n.is_read).length
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,21 +47,27 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
     }
   }, [isOpen])
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  const markAsRead = async (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    const supabase = createClient()
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
   }
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  const markAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    if (!user) return
+    const supabase = createClient()
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false)
   }
 
-  const getIcon = (type: NotificationType) => {
+  const getIcon = (type: string) => {
     switch (type) {
       case 'sla_warning': return <ClockIcon className="text-amber-500 w-4 h-4" />
       case 'escalation': return <ExclamationTriangleIcon className="text-red-500 w-4 h-4" />
       case 'status_update': return <UpdateIcon className="text-blue-500 w-4 h-4" />
       case 'assignment': return <PersonIcon className="text-purple-500 w-4 h-4" />
       case 'closed': return <CheckCircledIcon className="text-green-500 w-4 h-4" />
+      default: return <BellIcon className="text-gray-500 w-4 h-4" />
     }
   }
 
@@ -154,26 +116,23 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
                       key={notification.id}
                       onClick={() => {
                         markAsRead(notification.id)
-                        // Extract complaint ID from message (e.g. #1042)
-                        const match = notification.message.match(/#(\d+)/)
-                        if (match) {
-                          const complaintId = match[1]
+                        if (notification.complaint_id) {
                           const roleParam = role !== 'student' ? `?role=${role}` : ''
-                          router.push(`/dashboard/complaint/${complaintId}${roleParam}`)
+                          router.push(`/dashboard/complaint/${notification.complaint_id}${roleParam}`)
                           setIsOpen(false)
                         }
                       }}
-                      className={`p-4 border-b border-[#EAEAEA] last:border-b-0 cursor-pointer transition-colors hover:bg-[#F7F6F3] flex items-start space-x-3 ${!notification.read ? 'bg-[#F7F6F3]/50' : 'bg-white'}`}
+                      className={`p-4 border-b border-[#EAEAEA] last:border-b-0 cursor-pointer transition-colors hover:bg-[#F7F6F3] flex items-start space-x-3 ${!notification.is_read ? 'bg-[#F7F6F3]/50' : 'bg-white'}`}
                     >
                       <div className="mt-0.5 bg-white p-1.5 rounded-full border border-[#EAEAEA] shadow-sm flex-shrink-0">
                         {getIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start mb-1">
-                          <p className={`text-sm truncate pr-2 ${!notification.read ? 'font-semibold text-[#111111]' : 'font-medium text-[#787774]'}`}>
+                          <p className={`text-sm truncate pr-2 ${!notification.is_read ? 'font-semibold text-[#111111]' : 'font-medium text-[#787774]'}`}>
                             {notification.title}
                           </p>
-                          {!notification.read && (
+                          {!notification.is_read && (
                             <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
                           )}
                         </div>
@@ -181,7 +140,7 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
                           {notification.message}
                         </p>
                         <span className="text-[10px] text-[#787774]/70 mt-2 block font-medium">
-                          {notification.timestamp}
+                          {notification.created_at ? new Date(notification.created_at).toLocaleString() : ''}
                         </span>
                       </div>
                     </div>

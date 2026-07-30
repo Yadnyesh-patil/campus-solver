@@ -5,76 +5,78 @@ import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { MagnifyingGlassIcon, ArrowLeftIcon, CubeIcon } from '@radix-ui/react-icons';
 import { StatusTimeline, TimelineEntry } from '@/components/status-timeline';
+import { createClient } from '@/lib/supabase/client';
 // Assuming SlaTimer exists as requested in instructions
 // import { SlaTimer } from '@/components/sla-timer';
-
-// Mock Data for the single valid complaint
-const MOCK_COMPLAINT = {
-  id: 'CMP-2026-0892',
-  title: 'Fan making loud noise and wobbling',
-  description: 'The ceiling fan in room 402, Block A is making a very loud grinding noise and wobbling violently at high speeds. It seems dangerous and might fall.',
-  status: 'in_progress',
-  priority: 'high',
-  createdAt: '2026-07-29T10:30:00Z',
-  updatedAt: '2026-07-30T14:15:00Z',
-  category: 'Electrical',
-  location: 'Block A, Room 402',
-};
-
-const MOCK_TIMELINE: TimelineEntry[] = [
-  {
-    id: 't1',
-    action: 'Complaint Logged',
-    user: { name: 'Rahul S.', role: 'Student' },
-    timestamp: 'Jul 29, 2026 - 10:30 AM',
-    iconType: 'submitted',
-  },
-  {
-    id: 't2',
-    action: 'Verified & Categorized',
-    user: { name: 'System Auto-categorizer', role: 'AI Agent' },
-    timestamp: 'Jul 29, 2026 - 10:32 AM',
-    iconType: 'verified',
-    comment: 'Categorized as Electrical. Priority set to High due to potential safety risk mentioned.'
-  },
-  {
-    id: 't3',
-    action: 'Assigned to Technician',
-    user: { name: 'Admin Staff', role: 'Warden' },
-    timestamp: 'Jul 29, 2026 - 11:15 AM',
-    iconType: 'assigned',
-    comment: 'Assigned to Ram Kumar (Electrician)'
-  },
-  {
-    id: 't4',
-    action: 'Work Started',
-    user: { name: 'Ram Kumar', role: 'Technician' },
-    timestamp: 'Jul 30, 2026 - 02:15 PM',
-    iconType: 'progress',
-  }
-];
 
 export default function TrackComplaintPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<'idle' | 'found' | 'not-found'>('idle');
+  const [complaint, setComplaint] = useState<any>(null);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
     setSearchResult('idle');
 
-    // Simulate network request
-    setTimeout(() => {
-      if (searchQuery.trim().toUpperCase() === 'CMP-2026-0892') {
-        setSearchResult('found');
-      } else {
-        setSearchResult('not-found');
-      }
-      setIsSearching(false);
-    }, 800);
+    const supabase = createClient();
+    const query = searchQuery.trim();
+    let foundComplaint = null;
+
+    // Try exact UUID match or partial title match
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query);
+    if (isUUID) {
+      const { data } = await supabase.from('complaints').select('*').eq('id', query).single();
+      if (data) foundComplaint = data;
+    } else {
+      const { data: searchResults } = await supabase.from('complaints').select('*').ilike('title', `%${query}%`).limit(1);
+      foundComplaint = searchResults?.[0] || null;
+    }
+
+    if (foundComplaint) {
+      const { data: logs } = await supabase.from('complaint_logs').select('*, user:profiles!user_id(full_name, role)').eq('complaint_id', foundComplaint.id).order('created_at');
+      
+      const tl: TimelineEntry[] = (logs || []).map((log: any) => {
+        let iconType = 'progress';
+        if (log.action === 'status_change') {
+          if (log.new_value === 'verified') iconType = 'verified';
+          else if (log.new_value === 'assigned') iconType = 'assigned';
+          else if (log.new_value === 'resolved' || log.new_value === 'closed') iconType = 'completed';
+        } else if (log.action === 'comment') {
+          iconType = 'progress'; // or whatever you like
+        }
+        
+        const actionStr = log.action === 'status_change' ? `Status updated to ${log.new_value}` : 'Comment added';
+        return {
+          id: log.id,
+          action: actionStr,
+          user: { name: log.user?.full_name || 'System', role: log.user?.role || 'System' },
+          timestamp: new Date(log.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+          iconType: iconType as any,
+          comment: log.comment
+        };
+      });
+
+      // Add submission entry
+      tl.unshift({
+        id: `sub-${foundComplaint.id}`,
+        action: 'Complaint Logged',
+        user: { name: 'Student', role: 'Student' },
+        timestamp: new Date(foundComplaint.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }),
+        iconType: 'submitted' as any,
+      });
+
+      setComplaint(foundComplaint);
+      setTimeline(tl);
+      setSearchResult('found');
+    } else {
+      setSearchResult('not-found');
+    }
+    setIsSearching(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -190,18 +192,18 @@ export default function TrackComplaintPage() {
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <h2 className="text-xl md:text-2xl font-bold tracking-tight text-[#111111]">
-                          {MOCK_COMPLAINT.id}
+                          {complaint?.id}
                         </h2>
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${getStatusColor(MOCK_COMPLAINT.status)} uppercase tracking-wider`}>
-                          {formatStatus(MOCK_COMPLAINT.status)}
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${getStatusColor(complaint?.status || '')} uppercase tracking-wider`}>
+                          {formatStatus(complaint?.status || '')}
                         </span>
-                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${getPriorityColor(MOCK_COMPLAINT.priority)} uppercase tracking-wider hidden sm:inline-block`}>
-                          {MOCK_COMPLAINT.priority} Priority
+                        <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${getPriorityColor(complaint?.priority || '')} uppercase tracking-wider hidden sm:inline-block`}>
+                          {complaint?.priority} Priority
                         </span>
                       </div>
-                      <h3 className="text-lg font-medium text-[#111111] mb-2">{MOCK_COMPLAINT.title}</h3>
+                      <h3 className="text-lg font-medium text-[#111111] mb-2">{complaint?.title}</h3>
                       <p className="text-[#787774] text-sm leading-relaxed max-w-2xl">
-                        {MOCK_COMPLAINT.description}
+                        {complaint?.description}
                       </p>
                     </div>
                   </div>
@@ -209,22 +211,22 @@ export default function TrackComplaintPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-[#F7F6F3]">
                     <div>
                       <p className="text-xs text-[#787774] mb-1 uppercase tracking-wider font-semibold">Category</p>
-                      <p className="text-sm font-medium">{MOCK_COMPLAINT.category}</p>
+                      <p className="text-sm font-medium">{complaint?.category}</p>
                     </div>
                     <div>
                       <p className="text-xs text-[#787774] mb-1 uppercase tracking-wider font-semibold">Location</p>
-                      <p className="text-sm font-medium">{MOCK_COMPLAINT.location}</p>
+                      <p className="text-sm font-medium">{complaint?.building}, Room {complaint?.room_number}</p>
                     </div>
                     <div>
                       <p className="text-xs text-[#787774] mb-1 uppercase tracking-wider font-semibold">Created On</p>
                       <p className="text-sm font-medium font-mono text-[#111111]">
-                        {new Date(MOCK_COMPLAINT.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {complaint?.created_at ? new Date(complaint.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-[#787774] mb-1 uppercase tracking-wider font-semibold">Last Updated</p>
                       <p className="text-sm font-medium font-mono text-[#111111]">
-                        {new Date(MOCK_COMPLAINT.updatedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        {complaint?.updated_at ? new Date(complaint.updated_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
                       </p>
                     </div>
                   </div>
@@ -233,7 +235,7 @@ export default function TrackComplaintPage() {
                 {/* Timeline Section */}
                 <div className="p-6 md:p-8 bg-[#F7F6F3]/50">
                   <h4 className="text-lg font-semibold mb-8 text-[#111111]">Status Timeline</h4>
-                  <StatusTimeline entries={MOCK_TIMELINE} />
+                  <StatusTimeline entries={timeline} />
                 </div>
               </motion.div>
             )}

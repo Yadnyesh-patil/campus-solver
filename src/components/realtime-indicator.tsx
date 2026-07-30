@@ -2,13 +2,37 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
+import { createClient } from '@/lib/supabase/client'
 
 interface RealtimeIndicatorProps {
   isConnected?: boolean
   showLabel?: boolean
 }
 
-export function RealtimeIndicator({ isConnected = true, showLabel = true }: RealtimeIndicatorProps) {
+export function RealtimeIndicator({ isConnected: isConnectedProp, showLabel = true }: RealtimeIndicatorProps) {
+  const [connected, setConnected] = useState(false)
+
+  useEffect(() => {
+    // If the parent explicitly controls connection state, skip auto-detection
+    if (isConnectedProp !== undefined) {
+      setConnected(isConnectedProp)
+      return
+    }
+
+    const supabase = createClient()
+    const channel = supabase.channel('realtime-status')
+
+    channel.subscribe((status) => {
+      setConnected(status === 'SUBSCRIBED')
+    })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isConnectedProp])
+
+  const isConnected = isConnectedProp !== undefined ? isConnectedProp : connected
+
   return (
     <div className="flex items-center gap-2">
       <div className="relative">
