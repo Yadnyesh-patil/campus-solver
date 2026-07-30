@@ -1,39 +1,74 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { motion } from "motion/react";
 import { BellIcon, UpdateIcon, ExclamationTriangleIcon, CheckCircledIcon, ChatBubbleIcon } from "@radix-ui/react-icons";
 import { useAuth } from "@/hooks/use-auth";
-
-type NotificationType = "update" | "alert" | "success" | "comment" | "assignment";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  type: NotificationType;
-  complaintId?: string;
-}
-
-const initialNotifications: Notification[] = [
-  { id: "1", title: "Assigned", message: "Your complaint C-101 has been assigned to Electrical Dept.", timestamp: "10 mins ago", read: false, type: "assignment", complaintId: "1" },
-  { id: "2", title: "Status Update", message: "Status update: C-101 is now In Progress.", timestamp: "1 hour ago", read: false, type: "update", complaintId: "1" },
-  { id: "3", title: "SLA Warning", message: "SLA Warning: C-103 is approaching deadline.", timestamp: "2 hours ago", read: false, type: "alert", complaintId: "3" },
-  { id: "4", title: "Resolved", message: "Your complaint C-102 has been resolved.", timestamp: "1 day ago", read: true, type: "success", complaintId: "2" },
-  { id: "5", title: "New Comment", message: "New comment on C-101 from Priya Sharma.", timestamp: "1 day ago", read: true, type: "comment", complaintId: "1" },
-  { id: "6", title: "Status Update", message: "Status update: C-104 is now Closed.", timestamp: "2 days ago", read: true, type: "update", complaintId: "4" },
-  { id: "7", title: "Assigned", message: "Your complaint C-105 has been assigned to Plumbing Dept.", timestamp: "3 days ago", read: true, type: "assignment", complaintId: "5" },
-  { id: "8", title: "SLA Escalation", message: "C-106 has been escalated to Head of Maintenance.", timestamp: "4 days ago", read: true, type: "alert", complaintId: "6" },
-];
+import { createClient } from "@/lib/supabase/client";
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const { user, profile } = useAuth();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
+
+  useEffect(() => {
+    if (!user) return;
+    const supabase = createClient();
+
+    const fetchNotifications = async () => {
+      // For student, fetch logs for their complaints
+      const { data: myComplaints } = await supabase.from('complaints').select('id, title').eq('student_id', user.id);
+      
+      if (!myComplaints || myComplaints.length === 0) {
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+      
+      const complaintIds = myComplaints.map(c => c.id);
+      
+      const { data: logs } = await supabase.from('complaint_logs')
+        .select('*')
+        .in('complaint_id', complaintIds)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (logs) {
+        const formatted = logs.map((log: any) => {
+          const comp = myComplaints.find(c => c.id === log.complaint_id);
+          let type = "update";
+          if (log.action === 'escalation') type = "alert";
+          if (log.action === 'assignment') type = "assignment";
+          if (log.new_value === 'resolved' || log.new_value === 'closed') type = "success";
+          if (log.action === 'comment') type = "comment";
+
+          return {
+            id: log.id,
+            title: log.action.replace('_', ' ').toUpperCase(),
+            message: log.new_value || log.comment || `Activity on complaint`,
+            timestamp: new Date(log.created_at).toLocaleString(),
+            read: true, // For demo, assuming read
+            type,
+            complaintId: log.complaint_id,
+            complaintTitle: comp?.title || `C-${log.complaint_id.slice(0, 4).toUpperCase()}`
+          };
+        });
+        setNotifications(formatted);
+      }
+      setLoading(false);
+    };
+
+    fetchNotifications();
+    const channel = supabase.channel('student-notif-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaint_logs' }, fetchNotifications)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); }
+  }, [user]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const filteredNotifications = notifications.filter(n => filter === "all" || !n.read);
@@ -45,11 +80,7 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const getIcon = (type: NotificationType) => {
+  const getIcon = (type: string) => {
     switch (type) {
       case "update": return <UpdateIcon className="w-5 h-5 text-[#D97706]" />;
       case "alert": return <ExclamationTriangleIcon className="w-5 h-5 text-[#E53935]" />;
@@ -59,8 +90,6 @@ export default function NotificationsPage() {
       default: return <BellIcon className="w-5 h-5 text-[#111111]" />;
     }
   };
-
-  const { profile } = useAuth();
 
   return (
     <DashboardLayout role="student" userName={profile?.full_name || 'Student'} userEmail={profile?.email || ''}>
@@ -74,38 +103,25 @@ export default function NotificationsPage() {
               </span>
             )}
           </div>
-          <button 
-            onClick={handleMarkAllAsRead}
-            className="text-sm font-medium text-[#787774] hover:text-[#111111] transition-colors"
-          >
+          <button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))} className="text-sm font-medium text-[#787774] hover:text-[#111111] transition-colors">
             Mark all as read
           </button>
         </div>
 
         <div className="flex gap-2 border-b border-[#EAEAEA] pb-2">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === "all" ? "bg-[#111111] text-[#F7F6F3]" : "text-[#787774] hover:bg-[#EAEAEA]"
-            }`}
-          >
+          <button onClick={() => setFilter("all")} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filter === "all" ? "bg-[#111111] text-[#F7F6F3]" : "text-[#787774] hover:bg-[#EAEAEA]"}`}>
             All
           </button>
-          <button
-            onClick={() => setFilter("unread")}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              filter === "unread" ? "bg-[#111111] text-[#F7F6F3]" : "text-[#787774] hover:bg-[#EAEAEA]"
-            }`}
-          >
+          <button onClick={() => setFilter("unread")} className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${filter === "unread" ? "bg-[#111111] text-[#F7F6F3]" : "text-[#787774] hover:bg-[#EAEAEA]"}`}>
             Unread
           </button>
         </div>
 
         <div className="space-y-3">
-          {filteredNotifications.length === 0 ? (
-            <div className="text-center py-12 text-[#787774]">
-              No notifications to show.
-            </div>
+          {loading ? (
+            <div className="text-center py-12 text-[#787774]">Loading notifications...</div>
+          ) : filteredNotifications.length === 0 ? (
+            <div className="text-center py-12 text-[#787774]">No notifications to show.</div>
           ) : (
             filteredNotifications.map((notification, index) => (
               <motion.div
@@ -124,7 +140,7 @@ export default function NotificationsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start mb-1">
                     <p className={`text-sm font-medium ${!notification.read ? "text-[#111111]" : "text-[#787774]"}`}>
-                      {notification.title}
+                      {notification.title} - {notification.complaintTitle}
                     </p>
                     <span className="text-xs text-[#787774] whitespace-nowrap ml-4">
                       {notification.timestamp}
