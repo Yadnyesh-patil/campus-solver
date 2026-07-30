@@ -363,17 +363,15 @@ export default function VoiceSubmitPage() {
           )}
 
           {/* Camera Modal */}
-          {showCamera && (
-            <CameraCapture
-              onCapture={(blob) => {
-                const url = URL.createObjectURL(blob)
-                setCapturedImages(prev => [...prev, url])
-                setShowCamera(false)
-                toast.success('Evidence captured!')
-              }}
-              onClose={() => setShowCamera(false)}
-            />
-          )}
+          <CameraCapture
+            isOpen={showCamera}
+            onCapture={(_file, preview) => {
+              setCapturedImages(prev => [...prev, preview])
+              setShowCamera(false)
+              toast.success('Evidence captured!')
+            }}
+            onClose={() => setShowCamera(false)}
+          />
 
           {/* EDITING STATE */}
           {voiceState === 'editing' && (
