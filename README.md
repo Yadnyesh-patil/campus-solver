@@ -84,8 +84,8 @@ graph TD
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Yadnyesh-patil/campus-solver.git
-   cd campus-solver
+   git clone https://github.com/Yadnyesh-patil/RUNTIME-TERROR-SHIVAM-AGRAWAL.git
+   cd RUNTIME-TERROR-SHIVAM-AGRAWAL
    ```
 
 2. **Install dependencies**
