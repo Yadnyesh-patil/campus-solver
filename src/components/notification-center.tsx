@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { 
   BellIcon, 
@@ -66,7 +67,8 @@ const MOCK_NOTIFICATIONS: Notification[] = [
   }
 ]
 
-export function NotificationCenter({ align = 'left' }: { align?: 'left' | 'right' }) {
+export function NotificationCenter({ align = 'left', role = 'student' }: { align?: 'left' | 'right'; role?: 'student' | 'staff' | 'admin' }) {
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -150,7 +152,17 @@ export function NotificationCenter({ align = 'left' }: { align?: 'left' | 'right
                   {notifications.map((notification) => (
                     <div 
                       key={notification.id}
-                      onClick={() => markAsRead(notification.id)}
+                      onClick={() => {
+                        markAsRead(notification.id)
+                        // Extract complaint ID from message (e.g. #1042)
+                        const match = notification.message.match(/#(\d+)/)
+                        if (match) {
+                          const complaintId = match[1]
+                          const roleParam = role !== 'student' ? `?role=${role}` : ''
+                          router.push(`/dashboard/complaint/${complaintId}${roleParam}`)
+                          setIsOpen(false)
+                        }
+                      }}
                       className={`p-4 border-b border-[#EAEAEA] last:border-b-0 cursor-pointer transition-colors hover:bg-[#F7F6F3] flex items-start space-x-3 ${!notification.read ? 'bg-[#F7F6F3]/50' : 'bg-white'}`}
                     >
                       <div className="mt-0.5 bg-white p-1.5 rounded-full border border-[#EAEAEA] shadow-sm flex-shrink-0">

@@ -80,7 +80,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
       <div className="px-6 pb-4 flex items-center gap-3">
         <RealtimeIndicator />
         <div className="flex-1" />
-        <NotificationCenter />
+        <NotificationCenter role={role} />
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -154,7 +154,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
         </div>
         <div className="flex items-center gap-3">
           <RealtimeIndicator />
-          <NotificationCenter align="right" />
+          <NotificationCenter align="right" role={role} />
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -mr-2 text-[#787774] hover:text-[#111111]"
