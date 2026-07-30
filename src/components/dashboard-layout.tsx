@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   HamburgerMenuIcon,
@@ -125,9 +126,11 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
           </div>
         </button>
         <button
-          onClick={() => {
+          onClick={async () => {
+            const supabase = createClient()
+            await supabase.auth.signOut()
             toast.success('Signed out successfully')
-            setTimeout(() => router.push('/login'), 800)
+            router.push('/login')
           }}
           className="w-full mt-2 flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#787774] hover:bg-[#FDEBEC] hover:text-red-600 transition-colors"
         >

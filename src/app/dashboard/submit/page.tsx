@@ -8,6 +8,9 @@ import { DashboardLayout } from '@/components/dashboard-layout'
 import { DuplicateDetector } from '@/components/duplicate-detector'
 import { CameraCapture } from '@/components/camera-capture'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
+import { createClient } from '@/lib/supabase/client'
+import { SLA_HOURS } from '@/lib/types'
 import { 
   ArrowLeftIcon, ArrowRightIcon, UploadIcon, Cross2Icon, 
   CheckIcon, InfoCircledIcon, ImageIcon
@@ -59,6 +62,7 @@ type FormData = z.infer<typeof complaintSchema>
 
 export default function SubmitComplaintPage() {
   const router = useRouter()
+  const { user, profile, role, isLoading: authLoading } = useAuth()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<Partial<FormData>>({
     title: '',
@@ -147,11 +151,50 @@ export default function SubmitComplaintPage() {
     if (step > 1) setStep(step - 1)
   }
 
-  const handleSubmit = () => {
-    toast.success('Complaint submitted successfully', {
-      description: 'We will notify you once it is assigned.'
-    })
-    console.log('Submitted Data:', formData)
+  const handleSubmit = async () => {
+    if (!user) { toast.error('You must be logged in'); return }
+    const supabase = createClient()
+    
+    // Calculate SLA deadline
+    const priority = formData.priority || 'medium'
+    const hoursToAdd = SLA_HOURS[priority as keyof typeof SLA_HOURS] || 48
+    const slaDeadline = new Date(Date.now() + hoursToAdd * 60 * 60 * 1000).toISOString()
+    
+    const { data, error } = await supabase.from('complaints').insert({
+      title: formData.title,
+      description: formData.description,
+      category: formData.category,
+      priority: formData.priority,
+      status: 'submitted',
+      student_id: user.id,
+      building: formData.building,
+      room_number: formData.room_number || null,
+      ai_category: aiResult?.category || null,
+      ai_priority: aiResult?.priority || null,
+      ai_summary: aiResult?.summary || null,
+      ai_sentiment_score: aiResult?.urgency_score || null,
+      ai_metadata: aiResult ? { sentiment: aiResult.sentiment, department: aiResult.department, suggested_action: aiResult.suggested_action } : {},
+      image_urls: [],
+      sla_deadline: slaDeadline,
+    }).select().single()
+    
+    if (error) {
+      toast.error('Failed to submit complaint: ' + error.message)
+      return
+    }
+    
+    // Create initial log entry
+    if (data) {
+      await supabase.from('complaint_logs').insert({
+        complaint_id: data.id,
+        user_id: user.id,
+        action: 'status_change',
+        new_value: 'submitted',
+        comment: 'Complaint submitted by student',
+      })
+    }
+    
+    toast.success('Complaint submitted successfully!', { description: `ID: ${data?.id?.slice(0,8)}... — We will notify you once assigned.` })
     setTimeout(() => router.push('/dashboard'), 1500)
   }
 
@@ -207,7 +250,7 @@ export default function SubmitComplaintPage() {
   }
 
   return (
-    <DashboardLayout role="student" userName="Rahul Kumar" userEmail="rahul.k@campus.edu">
+    <DashboardLayout role="student" userName={profile?.full_name || 'Student'} userEmail={profile?.email || ''}>
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-semibold text-[#111111] tracking-tight mb-4">

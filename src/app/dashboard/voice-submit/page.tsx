@@ -7,6 +7,9 @@ import { DashboardLayout } from '@/components/dashboard-layout'
 import { CameraCapture } from '@/components/camera-capture'
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition'
 import { toast } from 'sonner'
+import { useAuth } from '@/hooks/use-auth'
+import { createClient } from '@/lib/supabase/client'
+import { SLA_HOURS } from '@/lib/types'
 
 type VoiceState = 'idle' | 'listening' | 'processing' | 'result' | 'editing'
 
@@ -22,6 +25,7 @@ interface AIPrediction {
 
 export default function VoiceSubmitPage() {
   const router = useRouter()
+  const { user, profile } = useAuth()
   const { transcript, isListening, isSupported, start, stop, reset } = useSpeechRecognition()
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [aiResult, setAiResult] = useState<AIPrediction | null>(null)
@@ -128,10 +132,49 @@ export default function VoiceSubmitPage() {
     }
   }
 
-  const handleSubmit = () => {
-    toast.success('Complaint submitted successfully!', {
-      description: `Category: ${editData.category} | Priority: ${editData.priority}`,
-    })
+  const handleSubmit = async () => {
+    if (!user) { toast.error('You must be logged in'); return }
+    const supabase = createClient()
+    
+    // Calculate SLA deadline
+    const priority = editData.priority || 'medium'
+    const hoursToAdd = SLA_HOURS[priority as keyof typeof SLA_HOURS] || 48
+    const slaDeadline = new Date(Date.now() + hoursToAdd * 60 * 60 * 1000).toISOString()
+    
+    const { data, error } = await supabase.from('complaints').insert({
+      title: editData.title,
+      description: editData.description,
+      category: editData.category,
+      priority: editData.priority,
+      status: 'submitted',
+      student_id: user.id,
+      building: editData.building,
+      room_number: editData.room || null,
+      ai_category: aiResult?.category || null,
+      ai_priority: aiResult?.priority || null,
+      ai_summary: aiResult?.summary || null,
+      ai_sentiment_score: aiResult?.urgency_score || null,
+      ai_metadata: aiResult ? { sentiment: aiResult.sentiment, department: aiResult.department, suggested_action: aiResult.suggested_action } : {},
+      image_urls: capturedImages,
+      sla_deadline: slaDeadline,
+    }).select().single()
+    
+    if (error) {
+      toast.error('Failed to submit complaint: ' + error.message)
+      return
+    }
+    
+    if (data) {
+      await supabase.from('complaint_logs').insert({
+        complaint_id: data.id,
+        user_id: user.id,
+        action: 'status_change',
+        new_value: 'submitted',
+        comment: 'Complaint submitted via voice by student',
+      })
+    }
+    
+    toast.success('Complaint submitted successfully!', { description: `ID: ${data?.id?.slice(0,8)}... — We will notify you once assigned.` })
     setTimeout(() => router.push('/dashboard'), 1500)
   }
 
@@ -149,7 +192,7 @@ export default function VoiceSubmitPage() {
   const BUILDINGS = ['Hostel A', 'Hostel B', 'Hostel C', 'Academic Block A', 'Academic Block B', 'Library Building', 'Sports Complex', 'Medical Center', 'Main Canteen', 'Admin Block', 'Computer Center', 'Workshop']
 
   return (
-    <DashboardLayout role="student" userName="Rahul Kumar" userEmail="rahul.k@campus.edu">
+    <DashboardLayout role="student" userName={profile?.full_name || 'Student'} userEmail={profile?.email || ''}>
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-semibold text-[#111111] tracking-tight mb-2">Voice Complaint</h1>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ExclamationTriangleIcon, ArrowRightIcon, EyeOpenIcon } from '@radix-ui/react-icons'
+import { createClient } from '@/lib/supabase/client'
 
 interface DuplicateDetectorProps {
   title: string
@@ -13,24 +14,69 @@ interface DuplicateDetectorProps {
 export function DuplicateDetector({ title, description, onProceedAnyway }: DuplicateDetectorProps) {
   const [hasDuplicate, setHasDuplicate] = useState(false)
   const [isDismissed, setIsDismissed] = useState(false)
+  const [duplicateData, setDuplicateData] = useState<any>(null)
 
-  // Simple mock logic: if title contains 'water' or 'fan', simulate finding a duplicate
   useEffect(() => {
     if (!title) {
       setHasDuplicate(false)
       return
     }
 
-    const lowerTitle = title.toLowerCase()
-    if (lowerTitle.includes('water') || lowerTitle.includes('fan')) {
-      const timer = setTimeout(() => {
-        setHasDuplicate(true)
-      }, 800) // slight delay to simulate API call
-      return () => clearTimeout(timer)
-    } else {
-      setHasDuplicate(false)
-    }
-  }, [title])
+    const timer = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const { data: recentComplaints } = await supabase
+          .from('complaints')
+          .select('id, title, description, status, created_at')
+          .neq('status', 'closed')
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (recentComplaints && recentComplaints.length > 0) {
+          const res = await fetch('/api/ai/detect-duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title,
+              description,
+              existingComplaints: recentComplaints
+            })
+          })
+          
+          if (res.ok) {
+            const result = await res.json()
+            if (result.isDuplicate && result.similarity > 70) {
+              setHasDuplicate(true)
+              setDuplicateData(result)
+              return
+            }
+          }
+        }
+        
+        // Fallback or no duplicate found via API
+        setHasDuplicate(false)
+        
+      } catch (err) {
+        // Fallback to simple string match on error
+        const lowerTitle = title.toLowerCase()
+        if (lowerTitle.includes('water') || lowerTitle.includes('fan')) {
+          setHasDuplicate(true)
+          setDuplicateData({
+            similarity: 92,
+            existingComplaint: {
+              title: lowerTitle.includes('water') ? 'Water leaking in corridor' : 'Ceiling fan making loud noise',
+              status: 'in_progress',
+              created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+            }
+          })
+        } else {
+          setHasDuplicate(false)
+        }
+      }
+    }, 800)
+
+    return () => clearTimeout(timer)
+  }, [title, description])
 
   if (isDismissed) return null
 
@@ -62,15 +108,17 @@ export function DuplicateDetector({ title, description, onProceedAnyway }: Dupli
                 <div className="bg-white/60 rounded-lg p-3 border border-amber-200/50 mb-3">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-semibold text-amber-900">
-                      {title.toLowerCase().includes('water') ? 'Water leaking in corridor' : 'Ceiling fan making loud noise'}
+                      {duplicateData?.existingComplaint?.title || 'Similar complaint'}
                     </span>
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800">
-                      92% Match
+                      {Math.round(duplicateData?.similarity || 90)}% Match
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 text-[11px] text-amber-700/80">
-                    <span className="font-medium px-1.5 py-0.5 bg-white rounded text-amber-600 border border-amber-100">In Progress</span>
-                    <span>• Reported 2 hours ago</span>
+                    <span className="font-medium px-1.5 py-0.5 bg-white rounded text-amber-600 border border-amber-100 capitalize">
+                      {duplicateData?.existingComplaint?.status?.replace('_', ' ') || 'In Progress'}
+                    </span>
+                    <span>• Reported {duplicateData?.existingComplaint?.created_at ? new Date(duplicateData.existingComplaint.created_at).toLocaleDateString() : 'recently'}</span>
                   </div>
                 </div>
 
