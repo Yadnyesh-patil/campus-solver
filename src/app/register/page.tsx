@@ -84,8 +84,22 @@ export default function RegisterPage() {
         return;
       }
 
-      // If email confirmation is disabled, user session exists — go straight to dashboard
-      if (data?.session) {
+      let session = data?.session;
+
+      // FALLBACK: If Supabase blocked the session due to "Confirm Email" settings,
+      // but we have our auto-confirm SQL trigger running, we can just log them in!
+      if (!session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        
+        if (!signInError && signInData?.session) {
+          session = signInData.session;
+        }
+      }
+
+      if (session) {
         const roleRoutes: Record<string, string> = {
           student: '/dashboard',
           staff: '/staff',
