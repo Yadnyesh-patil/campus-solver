@@ -4,19 +4,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
-import { PersonIcon, IdCardIcon, AvatarIcon } from '@radix-ui/react-icons';
 import { toast } from 'sonner';
-
-type Role = 'student' | 'staff' | 'admin';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error('Please fill in all fields');
@@ -24,25 +21,55 @@ export default function LoginPage() {
     }
     setIsLoading(true);
 
-    // Demo mode: navigate to the appropriate dashboard based on role
-    const roleRoutes: Record<Role, string> = {
-      student: '/dashboard',
-      staff: '/staff',
-      admin: '/admin',
-    };
-
-    const roleNames: Record<Role, string> = {
-      student: 'Rahul Sharma',
-      staff: 'Ram Kumar',
-      admin: 'Dr. Rajesh Kumar',
-    };
-
-    setTimeout(() => {
-      toast.success(`Welcome back, ${roleNames[role]}!`, {
-        description: `Signed in as ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+    try {
+      const supabase = createClient();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      router.push(roleRoutes[role]);
-    }, 600);
+
+      if (authError) {
+        toast.error(authError.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!authData.user) {
+        toast.error('User not found');
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, full_name')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        toast.error(profileError?.message || 'Could not fetch user profile');
+        setIsLoading(false);
+        return;
+      }
+
+      const roleRoutes: Record<string, string> = {
+        student: '/dashboard',
+        staff: '/staff',
+        admin: '/admin',
+      };
+
+      const targetRoute = roleRoutes[profile.role] || '/dashboard';
+      const userName = profile.full_name || authData.user.email || 'User';
+
+      toast.success(`Welcome back, ${userName}!`, {
+        description: `Signed in as ${profile.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'User'}`,
+      });
+
+      router.push(targetRoute);
+    } catch (err: any) {
+      toast.error(err?.message || 'An unexpected error occurred');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,48 +89,6 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-          <div className="flex flex-col gap-3">
-            <label className="text-sm font-medium text-[#111111]">Select Role</label>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                type="button"
-                onClick={() => setRole('student')}
-                className={`flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-colors text-sm ${
-                  role === 'student' 
-                    ? 'border-[#111111] bg-[#111111] text-white' 
-                    : 'border-[#EAEAEA] bg-white text-[#787774] hover:border-[#111111]/30'
-                }`}
-              >
-                <PersonIcon className="w-5 h-5" />
-                <span>Student</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('staff')}
-                className={`flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-colors text-sm ${
-                  role === 'staff' 
-                    ? 'border-[#111111] bg-[#111111] text-white' 
-                    : 'border-[#EAEAEA] bg-white text-[#787774] hover:border-[#111111]/30'
-                }`}
-              >
-                <IdCardIcon className="w-5 h-5" />
-                <span>Staff</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('admin')}
-                className={`flex flex-col items-center justify-center gap-2 p-3 border rounded-lg transition-colors text-sm ${
-                  role === 'admin' 
-                    ? 'border-[#111111] bg-[#111111] text-white' 
-                    : 'border-[#EAEAEA] bg-white text-[#787774] hover:border-[#111111]/30'
-                }`}
-              >
-                <AvatarIcon className="w-5 h-5" />
-                <span>Admin</span>
-              </button>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <label htmlFor="email" className="text-sm font-medium text-[#111111]">Email</label>

@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { PersonIcon, IdCardIcon, AvatarIcon, ChevronDownIcon } from '@radix-ui/react-icons';
 import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 
 type Role = 'student' | 'staff' | 'admin';
 
@@ -23,7 +25,9 @@ const DEPARTMENTS = [
 ];
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [role, setRole] = useState<Role>('student');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -36,7 +40,7 @@ export default function RegisterPage() {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
@@ -50,7 +54,35 @@ export default function RegisterPage() {
       toast.error('Please select a department');
       return;
     }
-    toast('Demo mode - Supabase not connected yet');
+
+    setIsLoading(true);
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            role,
+            department: formData.department || null,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      toast.success('Account created successfully!');
+      router.push('/login');
+    } catch (err: any) {
+      toast.error(err?.message || 'An unexpected error occurred');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -195,9 +227,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="h-10 mt-2 w-full bg-[#111111] text-white rounded-md text-sm font-medium hover:bg-[#111111]/90 transition-colors flex items-center justify-center"
+            disabled={isLoading}
+            className="h-10 mt-2 w-full bg-[#111111] text-white rounded-md text-sm font-medium hover:bg-[#111111]/90 transition-colors flex items-center justify-center disabled:opacity-60"
           >
-            Create Account
+            {isLoading ? 'Creating...' : 'Create Account'}
           </button>
         </form>
 

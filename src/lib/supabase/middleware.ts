@@ -4,12 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
-  // DEMO MODE: Skip auth checks when Supabase is not configured
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const isDemoMode = !supabaseUrl || supabaseUrl.includes('placeholder')
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (isDemoMode) {
-    // In demo mode, allow all routes without authentication
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // If Supabase is not configured, allow all routes
     return supabaseResponse
   }
 
