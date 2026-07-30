@@ -37,8 +37,9 @@ export default function MyComplaintsPage() {
 
   useEffect(() => {
     if (!user) return;
+    const supabase = createClient();
+    
     const fetchComplaints = async () => {
-      const supabase = createClient();
       const { data } = await supabase
         .from('complaints')
         .select('*')
