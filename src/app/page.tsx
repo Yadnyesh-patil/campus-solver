@@ -64,7 +64,7 @@ export default function LandingPage() {
                 <Link href="/register" className="inline-flex items-center justify-center bg-[#111111] text-white h-12 px-8 rounded-md text-base font-medium hover:bg-[#111111]/90 transition-colors">
                   Submit a Complaint
                 </Link>
-                <Link href="/login" className="inline-flex items-center justify-center bg-transparent border border-[#EAEAEA] text-[#111111] h-12 px-8 rounded-md text-base font-medium hover:bg-black/5 transition-colors">
+                <Link href="/track" className="inline-flex items-center justify-center bg-transparent border border-[#EAEAEA] text-[#111111] h-12 px-8 rounded-md text-base font-medium hover:bg-black/5 transition-colors">
                   Track Status
                 </Link>
               </div>

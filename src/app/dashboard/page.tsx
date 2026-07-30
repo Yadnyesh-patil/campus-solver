@@ -110,7 +110,9 @@ export default function DashboardPage() {
                 <tr key={comp.id} className="hover:bg-[#F7F6F3] transition-colors group cursor-pointer">
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-medium text-[#111111] group-hover:underline">{comp.title}</span>
+                      <Link href={`/dashboard/complaint/${comp.id}`} className="font-medium text-[#111111] hover:underline">
+                        {comp.title}
+                      </Link>
                       <span className="text-xs text-[#787774] mt-0.5">{comp.id}</span>
                     </div>
                   </td>

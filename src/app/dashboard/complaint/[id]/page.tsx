@@ -6,6 +6,9 @@ import Image from 'next/image'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { SLATimer } from '@/components/sla-timer'
 import { CommentForm } from '@/components/comment-form'
+import { EscalationBadge } from '@/components/escalation-badge'
+import { StudentCloseDialog } from '@/components/student-close-dialog'
+import { useEscalation } from '@/hooks/use-escalation'
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/types'
 import { motion } from 'motion/react'
 import { toast } from 'sonner'
@@ -102,9 +105,11 @@ export default function ComplaintDetailPage() {
   const params = useParams()
   const [timeline, setTimeline] = useState(INITIAL_TIMELINE)
   const [isEscalated, setIsEscalated] = useState(false)
+  const [complaint, setComplaint] = useState(MOCK_COMPLAINT)
+  const [showCloseDialog, setShowCloseDialog] = useState(false)
   
-  const statusBadge = getStatusBadge(MOCK_COMPLAINT.status)
-  const priorityBadge = getPriorityBadge(MOCK_COMPLAINT.priority)
+  const statusBadge = getStatusBadge(complaint.status)
+  const priorityBadge = getPriorityBadge(complaint.priority)
 
   const handleEscalate = () => {
     setIsEscalated(true)
@@ -193,6 +198,10 @@ export default function ComplaintDetailPage() {
                   {MOCK_COMPLAINT.category}
                 </span>
               </div>
+
+              {complaint.status === 'escalated' && (
+                <EscalationBadge level={1} escalatedAt={new Date().toISOString()} />
+              )}
 
               <h2 className="text-xl font-bold mb-3">{MOCK_COMPLAINT.title}</h2>
               <p className="text-[#787774] text-sm leading-relaxed mb-6">
@@ -332,12 +341,31 @@ export default function ComplaintDetailPage() {
               
               <div className="space-y-3">
                 <button 
+                  onClick={() => {
+                    const statusOrder = ['submitted', 'verified', 'in_progress', 'resolved']
+                    const currentIdx = statusOrder.indexOf(complaint.status)
+                    const nextStatus = statusOrder[Math.min(currentIdx + 1, statusOrder.length - 1)]
+                    setComplaint(prev => ({ ...prev, status: nextStatus as any }))
+                    setTimeline(prev => [{
+                      id: `t-${Date.now()}`,
+                      action: `Status changed to ${nextStatus.replace('_', ' ')}`,
+                      user: 'Admin Staff',
+                      timestamp: new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                      iconType: 'progress' as IconType
+                    }, ...prev])
+                    toast.success(`Status updated to ${nextStatus.replace('_', ' ')}`)
+                  }}
                   className="w-full py-2.5 px-4 bg-[#111111] text-white rounded-lg text-sm font-medium hover:bg-black/80 transition-colors"
                 >
                   Update Status
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   <button 
+                    onClick={() => {
+                      toast.success('Complaint reassigned to IT/Network department', {
+                        description: 'Staff member Priya Sharma has been notified.'
+                      })
+                    }}
                     className="w-full py-2.5 px-4 bg-white border border-[#EAEAEA] text-[#111111] rounded-lg text-sm font-medium hover:bg-[#F7F6F3] transition-colors"
                   >
                     Reassign
@@ -350,12 +378,32 @@ export default function ComplaintDetailPage() {
                     {isEscalated ? 'Escalated' : 'Escalate'}
                   </button>
                 </div>
+                {complaint.status === 'resolved' && (
+                  <button
+                    onClick={() => setShowCloseDialog(true)}
+                    className="w-full mt-3 py-2.5 px-4 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                  >
+                    Verify Resolution
+                  </button>
+                )}
               </div>
             </div>
 
           </div>
         </div>
 
+        <StudentCloseDialog
+          isOpen={showCloseDialog}
+          onClose={() => setShowCloseDialog(false)}
+          complaintTitle={complaint.title}
+          onConfirmClose={(rating, feedback) => {
+            console.log('Closed with rating:', rating, 'feedback:', feedback)
+            setComplaint(prev => ({ ...prev, status: 'closed' as any }))
+          }}
+          onReopen={() => {
+            setComplaint(prev => ({ ...prev, status: 'in_progress' as any }))
+          }}
+        />
       </div>
     </DashboardLayout>
   )

@@ -57,9 +57,20 @@ const statusData = [
 
 const heatmapBuildings = ['Hostel A', 'Hostel B', 'Academic Block A', 'Academic Block B', 'Library', 'Sports Complex'];
 const heatmapCategories = ['Electricity', 'Water', 'Internet', 'Hostel', 'Mess'];
+const getHeatValue = (building: string, day: string): number => {
+  let hash = 0
+  const str = `${building}-${day}`
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash
+  }
+  return Math.abs(hash) % 15
+}
+
 const heatmapData = heatmapBuildings.map(building => ({
   building,
-  ...heatmapCategories.reduce((acc, cat) => ({ ...acc, [cat]: Math.floor(Math.random() * 15) }), {})
+  ...heatmapCategories.reduce((acc, cat) => ({ ...acc, [cat]: getHeatValue(building, cat) }), {})
 }));
 
 const staffData = [

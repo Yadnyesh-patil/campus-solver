@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { ComplaintStatus, ComplaintPriority, STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/types";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { 
   MagnifyingGlassIcon, 
   MixerHorizontalIcon,
@@ -231,9 +232,9 @@ export default function AdminDashboard() {
                           >
                             Escalate
                           </button>
-                          <button className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
+                          <Link href={`/dashboard/complaint/${c.id}`} className="px-3 py-1 text-[#787774] hover:text-[#111111] text-xs font-medium underline underline-offset-2 transition-colors">
                             View
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     ))

@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { ComplaintStatus, ComplaintPriority, STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/types";
 import { motion } from "motion/react";
 import { toast } from "sonner";
+import Link from "next/link";
 import { 
   ClockIcon, 
   ChatBubbleIcon, 
@@ -178,7 +179,9 @@ export default function StaffDashboard() {
                     </div>
 
                     <h3 className="text-lg font-semibold text-[#111111] leading-tight">
-                      {complaint.title}
+                      <Link href={`/dashboard/complaint/${complaint.id}`} className="hover:underline">
+                        {complaint.title}
+                      </Link>
                     </h3>
                     
                     <div className="flex flex-wrap gap-4 text-sm text-[#787774]">

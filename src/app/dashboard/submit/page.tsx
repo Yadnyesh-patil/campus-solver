@@ -1,9 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { z } from 'zod'
 import { DashboardLayout } from '@/components/dashboard-layout'
+import { DuplicateDetector } from '@/components/duplicate-detector'
 import { toast } from 'sonner'
 import { 
   ArrowLeftIcon, ArrowRightIcon, UploadIcon, Cross2Icon, 
@@ -55,6 +57,7 @@ const complaintSchema = z.object({
 type FormData = z.infer<typeof complaintSchema>
 
 export default function SubmitComplaintPage() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<Partial<FormData>>({
     title: '',
@@ -99,6 +102,7 @@ export default function SubmitComplaintPage() {
       description: 'We will notify you once it is assigned.'
     })
     console.log('Submitted Data:', formData)
+    setTimeout(() => router.push('/dashboard'), 1500)
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,6 +228,12 @@ export default function SubmitComplaintPage() {
                     />
                     {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description}</p>}
                   </div>
+
+                  <DuplicateDetector
+                    title={formData.title || ''}
+                    description={formData.description || ''}
+                    onProceedAnyway={() => console.log('User chose to submit anyway')}
+                  />
 
                   <div>
                     <label className="block text-sm font-medium text-[#111111] mb-3">Category <span className="text-red-500">*</span></label>

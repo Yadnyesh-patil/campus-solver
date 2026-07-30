@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'motion/react';
 import { PersonIcon, IdCardIcon, AvatarIcon } from '@radix-ui/react-icons';
 import { toast } from 'sonner';
@@ -9,9 +10,11 @@ import { toast } from 'sonner';
 type Role = 'student' | 'staff' | 'admin';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [role, setRole] = useState<Role>('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +22,27 @@ export default function LoginPage() {
       toast.error('Please fill in all fields');
       return;
     }
-    toast('Demo mode - Supabase not connected yet');
+    setIsLoading(true);
+
+    // Demo mode: navigate to the appropriate dashboard based on role
+    const roleRoutes: Record<Role, string> = {
+      student: '/dashboard',
+      staff: '/staff',
+      admin: '/admin',
+    };
+
+    const roleNames: Record<Role, string> = {
+      student: 'Rahul Sharma',
+      staff: 'Ram Kumar',
+      admin: 'Dr. Rajesh Kumar',
+    };
+
+    setTimeout(() => {
+      toast.success(`Welcome back, ${roleNames[role]}!`, {
+        description: `Signed in as ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+      });
+      router.push(roleRoutes[role]);
+    }, 600);
   };
 
   return (
@@ -111,9 +134,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="h-10 mt-2 w-full bg-[#111111] text-white rounded-md text-sm font-medium hover:bg-[#111111]/90 transition-colors flex items-center justify-center"
+            disabled={isLoading}
+            className="h-10 mt-2 w-full bg-[#111111] text-white rounded-md text-sm font-medium hover:bg-[#111111]/90 transition-colors flex items-center justify-center disabled:opacity-60"
           >
-            Sign In
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

@@ -17,6 +17,8 @@ import {
   PersonIcon,
   LayersIcon,
 } from '@radix-ui/react-icons'
+import { NotificationCenter } from '@/components/notification-center'
+import { RealtimeIndicator } from '@/components/realtime-indicator'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -48,15 +50,15 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
       { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     ],
     staff: [
-      { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
-      { name: 'Assigned Complaints', href: '/dashboard/assigned', icon: ListBulletIcon },
+      { name: 'Dashboard', href: '/staff', icon: DashboardIcon },
+      { name: 'Assigned Complaints', href: '/staff', icon: ListBulletIcon },
       { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     ],
     admin: [
-      { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
-      { name: 'All Complaints', href: '/dashboard/all-complaints', icon: LayersIcon },
-      { name: 'Analytics', href: '/dashboard/analytics', icon: BarChartIcon },
-      { name: 'Manage Staff', href: '/dashboard/staff', icon: PersonIcon },
+      { name: 'Dashboard', href: '/admin', icon: DashboardIcon },
+      { name: 'All Complaints', href: '/admin', icon: LayersIcon },
+      { name: 'Analytics', href: '/admin/analytics', icon: BarChartIcon },
+      { name: 'Manage Staff', href: '/admin', icon: PersonIcon },
       { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     ],
   }
@@ -70,6 +72,11 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
           CS
         </div>
         <span className="font-semibold text-[#111111] text-lg tracking-tight">Campus Solver</span>
+      </div>
+      <div className="px-6 pb-4 flex items-center gap-3">
+        <RealtimeIndicator />
+        <div className="flex-1" />
+        <NotificationCenter />
       </div>
 
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
@@ -128,12 +135,16 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
           </div>
           <span className="font-semibold text-[#111111]">Campus Solver</span>
         </div>
-        <button
-          onClick={() => setIsSidebarOpen(true)}
-          className="p-2 -mr-2 text-[#787774] hover:text-[#111111]"
-        >
-          <HamburgerMenuIcon className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-3">
+          <RealtimeIndicator />
+          <NotificationCenter />
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 -mr-2 text-[#787774] hover:text-[#111111]"
+          >
+            <HamburgerMenuIcon className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile Sidebar Overlay */}
