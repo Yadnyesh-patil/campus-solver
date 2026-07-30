@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import DashboardLayout from '@/components/dashboard-layout';
+import { DashboardLayout } from '@/components/dashboard-layout';
 import {
   BarChart,
   Bar,
@@ -100,7 +100,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export default function AnalyticsPage() {
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role="admin" userName="Dr. Rajesh Kumar" userEmail="admin@campus.edu">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 bg-[#F7F6F3] min-h-[100dvh] font-[family-name:var(--font-geist-sans)]">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-[#111111]">Analytics Overview</h1>

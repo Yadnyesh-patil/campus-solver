@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
-import DashboardLayout from '@/components/dashboard-layout'
+import { DashboardLayout } from '@/components/dashboard-layout'
 import { SLATimer } from '@/components/sla-timer'
 import { CommentForm } from '@/components/comment-form'
 import { STATUS_CONFIG, PRIORITY_CONFIG } from '@/lib/types'
@@ -145,7 +145,7 @@ export default function ComplaintDetailPage() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout role="student" userName="Rahul Verma" userEmail="rahul@campus.edu">
       <div className="max-w-5xl mx-auto space-y-6 pb-20">
         
         {/* Escalation Banner */}
@@ -260,9 +260,9 @@ export default function ComplaintDetailPage() {
                         </div>
                       )}
 
-                      {entry.attachments && entry.attachments.length > 0 && (
+                      {(entry as any).attachments && (entry as any).attachments.length > 0 && (
                         <div className="mt-2 flex items-center gap-2">
-                          {entry.attachments.map((att, i) => (
+                          {(entry as any).attachments.map((att: string, i: number) => (
                             <span key={i} className="inline-flex items-center gap-1 text-xs bg-white border border-[#EAEAEA] px-2 py-1 rounded">
                               <ImageIcon className="w-3 h-3 text-[#787774]" /> {att}
                             </span>
