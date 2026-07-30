@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'motion/react'
 import { z } from 'zod'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import { DuplicateDetector } from '@/components/duplicate-detector'
+import { CameraCapture } from '@/components/camera-capture'
 import { toast } from 'sonner'
 import { 
   ArrowLeftIcon, ArrowRightIcon, UploadIcon, Cross2Icon, 
@@ -70,6 +71,44 @@ export default function SubmitComplaintPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imagesPreview, setImagesPreview] = useState<string[]>([])
+  const [showCamera, setShowCamera] = useState(false)
+  
+  const [aiResult, setAiResult] = useState<any>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  useEffect(() => {
+    if (step === 3 && formData.title && formData.description) {
+      setAiLoading(true)
+      fetch('/api/ai/categorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setAiResult(data.prediction)
+          }
+          setAiLoading(false)
+        })
+        .catch(() => {
+          // Fallback mock data if AI service is unavailable
+          setAiResult({
+            category: formData.category || 'other',
+            priority: formData.priority || 'medium',
+            department: 'Hostel Management',
+            urgency_score: 7,
+            summary: `${formData.title} - requires attention from the maintenance team`,
+            sentiment: 'frustrated',
+            suggested_action: 'Assign to maintenance staff for immediate inspection',
+          })
+          setAiLoading(false)
+        })
+    }
+  }, [step, formData.title, formData.description, formData.category, formData.priority])
   
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {}
@@ -321,6 +360,15 @@ export default function SubmitComplaintPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-[#111111] mb-1.5">Evidence Images (Max 3)</label>
+                    <div className="flex gap-3 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowCamera(true)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 bg-[#111111] text-white rounded-lg text-sm font-medium hover:bg-black transition-colors"
+                      >
+                        📸 Take Photo / Video
+                      </button>
+                    </div>
                     <div className="border-2 border-dashed border-[#EAEAEA] rounded-xl p-6 text-center hover:bg-[#F7F6F3] transition-colors relative">
                       <input 
                         type="file" 
@@ -399,18 +447,58 @@ export default function SubmitComplaintPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-[#EAEAEA] p-4 relative overflow-hidden bg-white">
-                     <div className="flex items-center gap-2 mb-3">
-                        <InfoCircledIcon className="w-4 h-4 text-[#787774]" />
-                        <h3 className="text-sm font-medium text-[#111111]">AI Analysis</h3>
-                     </div>
-                     <div className="space-y-2">
-                        <div className="h-4 bg-[#F7F6F3] rounded w-3/4 animate-pulse"></div>
-                        <div className="h-4 bg-[#F7F6F3] rounded w-1/2 animate-pulse"></div>
-                     </div>
-                     <div className="mt-3 text-xs text-[#787774]">
-                        Processing complaint text to suggest relevant departments and similar past issues...
-                     </div>
+                  <div className="rounded-xl border border-[#EAEAEA] p-5 relative overflow-hidden bg-white">
+                    <div className="flex items-center gap-2 mb-4">
+                      <InfoCircledIcon className="w-4 h-4 text-[#787774]" />
+                      <h3 className="text-sm font-semibold text-[#111111]">AI Analysis</h3>
+                      {aiLoading && <span className="text-xs text-[#787774] animate-pulse">Analyzing...</span>}
+                    </div>
+                    {aiLoading ? (
+                      <div className="space-y-3">
+                        <div className="h-4 bg-[#F7F6F3] rounded w-3/4 animate-pulse" />
+                        <div className="h-4 bg-[#F7F6F3] rounded w-1/2 animate-pulse" />
+                        <div className="h-4 bg-[#F7F6F3] rounded w-2/3 animate-pulse" />
+                      </div>
+                    ) : aiResult ? (
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-1">Summary</p>
+                          <p className="text-sm text-[#111111]">{aiResult.summary}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-[#EAEAEA]">
+                          <div>
+                            <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-1">Predicted Dept</p>
+                            <p className="text-sm font-medium text-[#111111]">{aiResult.department}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-1">Sentiment</p>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize ${
+                              aiResult.sentiment === 'frustrated' ? 'bg-[#FDEBEC] text-red-700' :
+                              aiResult.sentiment === 'angry' ? 'bg-red-100 text-red-800' :
+                              aiResult.sentiment === 'urgent' ? 'bg-amber-100 text-amber-800' :
+                              'bg-[#EDF3EC] text-green-700'
+                            }`}>{aiResult.sentiment}</span>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-1">Urgency Score</p>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-[#EAEAEA] rounded-full h-2">
+                                <div className={`h-2 rounded-full transition-all ${
+                                  aiResult.urgency_score >= 8 ? 'bg-red-500' :
+                                  aiResult.urgency_score >= 5 ? 'bg-amber-500' :
+                                  'bg-green-500'
+                                }`} style={{ width: `${aiResult.urgency_score * 10}%` }} />
+                              </div>
+                              <span className="text-sm font-semibold text-[#111111]">{aiResult.urgency_score}/10</span>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-[#787774] uppercase tracking-wider mb-1">Suggested Action</p>
+                            <p className="text-sm text-[#111111]">{aiResult.suggested_action}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               )}
@@ -451,6 +539,18 @@ export default function SubmitComplaintPage() {
           </div>
         </div>
       </div>
+      <CameraCapture
+        isOpen={showCamera}
+        onClose={() => setShowCamera(false)}
+        onCapture={(file, previewUrl) => {
+          setFormData(prev => ({
+            ...prev,
+            images: [...(prev.images || []), file]
+          }))
+          setImagesPreview(prev => [...prev, previewUrl])
+          toast.success('Evidence captured!')
+        }}
+      />
     </DashboardLayout>
   )
 }

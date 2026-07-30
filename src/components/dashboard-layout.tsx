@@ -16,6 +16,7 @@ import {
   BarChartIcon,
   PersonIcon,
   LayersIcon,
+  MixerVerticalIcon,
 } from '@radix-ui/react-icons'
 import { NotificationCenter } from '@/components/notification-center'
 import { RealtimeIndicator } from '@/components/realtime-indicator'
@@ -46,6 +47,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
     student: [
       { name: 'Dashboard', href: '/dashboard', icon: DashboardIcon },
       { name: 'Submit Complaint', href: '/dashboard/submit', icon: PlusIcon },
+      { name: 'Voice Complaint', href: '/dashboard/voice-submit', icon: MixerVerticalIcon },
       { name: 'My Complaints', href: '/dashboard/complaints', icon: ListBulletIcon },
       { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
     ],
