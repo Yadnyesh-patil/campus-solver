@@ -90,6 +90,7 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
             <Link
               key={link.name}
               href={link.href}
+              onClick={() => setIsSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${
                 isActive
                   ? 'bg-[#F7F6F3] text-[#111111]'
