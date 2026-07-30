@@ -19,6 +19,8 @@ interface AIPrediction {
   department: string
   urgency_score: number
   summary: string
+  title?: string
+  description?: string
   sentiment: string
   suggested_action: string
 }
@@ -72,8 +74,8 @@ export default function VoiceSubmitPage() {
       if (data.success) {
         setAiResult(data.prediction)
         setEditData({
-          title: data.prediction.summary || text.slice(0, 80),
-          description: text,
+          title: data.prediction.title || data.prediction.summary || text.slice(0, 80),
+          description: data.prediction.description || text,
           category: data.prediction.category,
           building: '',
           room: '',

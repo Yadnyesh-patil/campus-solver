@@ -17,8 +17,10 @@ export async function POST(request: NextRequest) {
 3. department: The most appropriate department to handle this (e.g., "Hostel Management", "Electrical Maintenance", "IT/Network", etc.)
 4. urgency_score: A number 1-10 indicating urgency
 5. summary: A brief 1-2 sentence summary of the issue
-6. sentiment: The emotional tone (frustrated, neutral, urgent, angry)
-7. suggested_action: What should be done first
+6. title: A concise, formal title (under 60 chars) for the complaint. Remove repeated/filler words.
+7. description: A clear, formal, and structured description of the issue. Fix grammar and remove any speech-to-text artifacts like repeated words.
+8. sentiment: The emotional tone (frustrated, neutral, urgent, angry)
+9. suggested_action: What should be done first
 
 Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.`
 
@@ -73,6 +75,8 @@ Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.
         department: parsed.department || 'General Administration',
         urgency_score: parsed.urgency_score || 5,
         summary: parsed.summary || '',
+        title: parsed.title || '',
+        description: parsed.description || '',
         sentiment: parsed.sentiment || 'neutral',
         suggested_action: parsed.suggested_action || 'Assign to relevant department',
       },
