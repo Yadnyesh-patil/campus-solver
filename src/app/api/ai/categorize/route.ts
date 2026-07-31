@@ -33,7 +33,7 @@ Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.
         'Authorization': `Bearer ${FREELLMAPI_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },

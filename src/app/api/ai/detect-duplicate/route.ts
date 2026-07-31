@@ -44,7 +44,7 @@ ${existingComplaints.map(c => `- ID: ${c.id}\n  Title: ${c.title}\n  Description
         'Authorization': `Bearer ${FREELLMAPI_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
