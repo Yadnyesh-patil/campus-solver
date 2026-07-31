@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `You are an AI assistant for a campus grievance management system. Analyze the following complaint and provide:
 1. category: One of: hostel, electricity, water, internet, transport, mess, library, classroom, faculty, examination, sports, medical, security, other
-2. priority: One of: low, medium, high, critical. CRITICAL RULES for priority: Any mention of fire, smoke, burning, physical injury, severe health hazards, theft, or imminent danger to life/property MUST be categorized as 'critical'. Minor inconveniences are 'low' or 'medium'.
+2. priority: One of: low, medium, high, critical. CRITICAL RULES for priority: Any mention of fire, smoke, burning, physical injury, severe health hazards, theft, or imminent danger to life/property MUST be categorized as 'critical'. Minor inconveniences are 'medium'. IMPORTANT: Trivial personal issues that are NOT campus facility/management problems (e.g. "I don't have a pencil", "I lost my notebook") MUST be assigned 'low' priority.
 3. department: The most appropriate department to handle this (e.g., "Hostel Management", "Electrical Maintenance", "IT/Network", "Campus Security", "Fire & Safety")
-4. urgency_score: A number 1-10 indicating urgency. Life-threatening or severe property damage situations (like fire) MUST be 9 or 10.
+4. urgency_score: A number 1-10 indicating urgency. Life-threatening or severe property damage situations MUST be 9 or 10. Trivial personal non-campus issues MUST be 1.
 5. summary: A brief 1-2 sentence summary of the issue
 6. title: A concise, formal title (under 60 chars) for the complaint. Remove repeated/filler words.
 7. description: A clear, formal, and structured description of the issue. Fix grammar and remove any speech-to-text artifacts like repeated words.
 8. sentiment: The emotional tone (frustrated, neutral, urgent, angry, panicked)
-9. suggested_action: What should be done first (e.g., "Dispatch emergency team immediately")
+9. suggested_action: What should be done first (e.g., "Dispatch emergency team immediately". For trivial non-campus issues, suggest "Close as invalid/personal issue").
 
 Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.`
 
