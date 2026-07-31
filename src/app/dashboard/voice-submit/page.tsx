@@ -109,6 +109,8 @@ export default function VoiceSubmitPage() {
         category = 'mess'; department = 'Mess/Canteen'; priority = 'medium'; urgency = 5
       } else if (lowerText.includes('security') || lowerText.includes('theft') || lowerText.includes('safe')) {
         category = 'security'; department = 'Campus Security'; priority = 'critical'; urgency = 9
+      } else if (lowerText.includes('pencil') || lowerText.includes('pen') || lowerText.includes('children') || lowerText.includes('boyfriend') || lowerText.includes('girlfriend') || lowerText.includes('notebook')) {
+        category = 'other'; department = 'General Administration'; priority = 'low'; urgency = 1; sentiment = 'neutral';
       }
 
       // Extract building/room from text
