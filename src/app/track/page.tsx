@@ -24,14 +24,25 @@ export default function TrackComplaintPage() {
     setSearchResult('idle');
 
     const supabase = createClient();
-    const query = searchQuery.trim();
+    const query = searchQuery.trim().toUpperCase();
     let foundComplaint = null;
 
-    // Try exact UUID match or partial title match
+    // Try exact UUID match
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query);
+    
+    // Check if it's a short ID like CMP-7F81
+    const isShortID = query.startsWith('CMP-');
+
     if (isUUID) {
-      const { data } = await supabase.from('complaints').select('*').eq('id', query).single();
+      const { data } = await supabase.from('complaints').select('*').eq('id', query.toLowerCase()).single();
       if (data) foundComplaint = data;
+    } else if (isShortID) {
+      const shortIdHash = query.replace('CMP-', '').toLowerCase();
+      // Fetch recent complaints and filter in memory since we can't ilike UUIDs directly via postgrest
+      const { data } = await supabase.from('complaints').select('*').order('created_at', { ascending: false }).limit(1000);
+      if (data) {
+        foundComplaint = data.find((c: any) => c.id.toLowerCase().startsWith(shortIdHash)) || null;
+      }
     } else {
       const { data: searchResults } = await supabase.from('complaints').select('*').ilike('title', `%${query}%`).limit(1);
       foundComplaint = searchResults?.[0] || null;
@@ -172,7 +183,7 @@ export default function TrackComplaintPage() {
                 </div>
                 <h3 className="text-xl font-medium mb-2 text-[#111111]">Complaint Not Found</h3>
                 <p className="text-[#787774] max-w-sm mx-auto">
-                  We couldn't find a complaint with ID <span className="font-mono text-[#111111] bg-[#F7F6F3] px-1.5 py-0.5 rounded">{searchQuery}</span>. 
+                  We couldn't find a complaint with ID <span className="font-mono text-[#111111] bg-[#F7F6F3] px-1.5 py-0.5 rounded">{searchQuery.toUpperCase()}</span>. 
                   Please check the ID and try again.
                 </p>
               </motion.div>
