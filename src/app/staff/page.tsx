@@ -3,14 +3,16 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { ComplaintStatus, ComplaintPriority, STATUS_CONFIG, PRIORITY_CONFIG } from "@/lib/types";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { 
   ClockIcon, 
   ChatBubbleIcon, 
   HomeIcon, 
-  PersonIcon 
+  PersonIcon,
+  ImageIcon,
+  Cross2Icon
 } from "@radix-ui/react-icons";
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +23,12 @@ export default function StaffDashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+
+  // Modal state for resolving complaint
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [resolveComplaintId, setResolveComplaintId] = useState("");
+  const [proofNote, setProofNote] = useState("");
+  const [proofImage, setProofImage] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -99,17 +107,14 @@ export default function StaffDashboard() {
   });
 
   const handleStatusChange = async (id: string, newStatus: string) => {
+    if (newStatus === 'resolved') {
+      setResolveComplaintId(id);
+      setResolveModalOpen(true);
+      return;
+    }
+    
     const supabase = createClient();
     const updateData: any = { status: newStatus };
-    if (newStatus === 'resolved') {
-      const proof = window.prompt("Please provide proof of work (e.g., a note or image link) to mark this as resolved:");
-      if (!proof) {
-        toast.error("Proof of work is required to resolve a complaint.");
-        return;
-      }
-      updateData.proof_of_work = proof;
-      updateData.resolved_at = new Date().toISOString();
-    }
     
     // Optimistic UI update
     setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus as ComplaintStatus } : c));
@@ -121,11 +126,75 @@ export default function StaffDashboard() {
         user_id: user.id,
         action: 'status_change',
         old_value: complaints.find(c => c.id === id)?.status,
-        new_value: newStatus,
-        comment: updateData.proof_of_work ? `Proof of work: ${updateData.proof_of_work}` : undefined
+        new_value: newStatus
       });
     }
     toast.success(`Status updated to ${STATUS_CONFIG[newStatus as ComplaintStatus]?.label || newStatus}`);
+  };
+
+  const submitResolve = async () => {
+    if (!proofNote.trim() && !proofImage) {
+      toast.error("Please provide a note or upload an image as proof of work.");
+      return;
+    }
+    const id = resolveComplaintId;
+    const supabase = createClient();
+    
+    setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: 'resolved' as ComplaintStatus } : c));
+    
+    await supabase.from('complaints').update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString()
+    }).eq('id', id);
+    
+    if (user) {
+      const commentText = proofNote ? `Proof of work: ${proofNote}` : 'Resolved with image proof';
+      const insertData: any = {
+        complaint_id: id,
+        user_id: user.id,
+        action: 'status_change',
+        old_value: complaints.find(c => c.id === id)?.status,
+        new_value: 'resolved',
+        comment: commentText,
+      };
+      if (proofImage) {
+        insertData.attachment_urls = [proofImage];
+      }
+      await supabase.from('complaint_logs').insert(insertData);
+    }
+    toast.success("Complaint marked as resolved.");
+    setResolveModalOpen(false);
+    setProofNote("");
+    setProofImage("");
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let { width, height } = img;
+          const MAX_SIZE = 800;
+          if (width > height && width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          setProofImage(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleCommentSubmit = async (id: string, e: React.FormEvent) => {
@@ -292,6 +361,86 @@ export default function StaffDashboard() {
           )}
         </div>
       </div>
+
+      <AnimatePresence>
+        {resolveModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[#EAEAEA]">
+                <h3 className="font-semibold text-lg text-[#111111]">Resolve Complaint</h3>
+                <button
+                  onClick={() => setResolveModalOpen(false)}
+                  className="p-2 text-[#787774] hover:bg-[#F7F6F3] rounded-lg transition-colors"
+                >
+                  <Cross2Icon className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-[#111111] mb-2">
+                    Resolution Note
+                  </label>
+                  <textarea
+                    value={proofNote}
+                    onChange={(e) => setProofNote(e.target.value)}
+                    placeholder="Describe the work done..."
+                    className="w-full px-3 py-2 border border-[#EAEAEA] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#111111]/10 focus:border-[#111111] resize-none h-24"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#111111] mb-2">
+                    Proof Image (Optional)
+                  </label>
+                  {proofImage ? (
+                    <div className="relative rounded-lg overflow-hidden border border-[#EAEAEA]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={proofImage} alt="Proof" className="w-full h-48 object-cover" />
+                      <button
+                        onClick={() => setProofImage("")}
+                        className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-md hover:bg-black/70 transition-colors"
+                      >
+                        <Cross2Icon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#EAEAEA] rounded-lg cursor-pointer hover:bg-[#F7F6F3] transition-colors">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <ImageIcon className="w-8 h-8 text-[#787774] mb-2" />
+                        <p className="text-sm text-[#787774]">Click to upload image</p>
+                      </div>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    </label>
+                  )}
+                </div>
+              </div>
+              <div className="p-4 border-t border-[#EAEAEA] flex justify-end gap-3 bg-[#F7F6F3]/50">
+                <button
+                  onClick={() => setResolveModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-[#787774] hover:text-[#111111] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submitResolve}
+                  className="px-4 py-2 bg-[#111111] text-white text-sm font-medium rounded-lg hover:bg-black transition-colors"
+                >
+                  Confirm Resolution
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

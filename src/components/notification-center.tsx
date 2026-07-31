@@ -67,7 +67,7 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
             title: log.action.replace('_', ' ').toUpperCase(),
             message: log.new_value || log.comment || `Activity on complaint`,
             created_at: log.created_at,
-            is_read: true, // For demo purposes, we will treat them as read unless we build a full read-tracking system
+            is_read: true,
             type,
             complaint_id: log.complaint_id,
             complaintTitle: log.complaints?.title || `C-${log.complaint_id.slice(0, 4).toUpperCase()}`
@@ -75,11 +75,19 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
         })
 
         const newTopId = formatted[0].id
+        const lastSeenId = localStorage.getItem(`last_seen_notif_${role}`)
+        
         if (topNotificationIdRef.current && topNotificationIdRef.current !== newTopId) {
           toast.info("New Notification", { description: `${formatted[0].title}: ${formatted[0].complaintTitle}` })
-          if (!isOpen) setUnreadCount(prev => prev + 1)
         }
+        
         topNotificationIdRef.current = newTopId
+
+        if (lastSeenId !== newTopId) {
+          setUnreadCount(1)
+        } else {
+          setUnreadCount(0)
+        }
 
         setNotifications(formatted)
       }
@@ -87,16 +95,23 @@ export function NotificationCenter({ align = 'left', role = 'student' }: { align
     
     fetchNotifications()
     
+    // Polling fallback every 5 seconds since Supabase Realtime requires explicit table enablement
+    const pollInterval = setInterval(fetchNotifications, 5000)
+    
     const channel = supabase.channel(`notif-center-${role}-${Date.now()}`)
     channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'complaint_logs' }, fetchNotifications)
     channel.subscribe()
       
-    return () => { supabase.removeChannel(channel) }
+    return () => { 
+      clearInterval(pollInterval)
+      supabase.removeChannel(channel) 
+    }
   }, [user, role])
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && topNotificationIdRef.current) {
       setUnreadCount(0)
+      localStorage.setItem(`last_seen_notif_${role}`, topNotificationIdRef.current)
     }
     
     function handleClickOutside(event: MouseEvent) {
