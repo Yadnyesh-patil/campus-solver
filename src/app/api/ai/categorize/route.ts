@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
 7. description: A clear, formal, and structured description of the issue. Fix grammar and remove any speech-to-text artifacts like repeated words.
 8. sentiment: The emotional tone (frustrated, neutral, urgent, angry, panicked)
 9. suggested_action: What should be done first (e.g., "Dispatch emergency team immediately". For trivial non-campus issues, suggest "Close as invalid/personal issue").
+10. location_building: The name of the building or block mentioned (e.g., 'Hostel A', 'AB Block', 'Main Building'). Keep empty string if not mentioned.
+11. location_room: The room number mentioned (e.g., '412', '101A'). Keep empty string if not mentioned.
+12. location_wing: The wing or floor mentioned (e.g., 'East Wing', 'Ground Floor'). Keep empty string if not mentioned.
 
 Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.`
 
@@ -81,6 +84,9 @@ Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.
         description: parsed.description || '',
         sentiment: parsed.sentiment || 'neutral',
         suggested_action: parsed.suggested_action || 'Assign to relevant department',
+        location_building: parsed.location_building || '',
+        location_room: parsed.location_room || '',
+        location_wing: parsed.location_wing || '',
       },
     })
   } catch (error) {

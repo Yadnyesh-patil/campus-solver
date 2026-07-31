@@ -176,6 +176,33 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-semibold tracking-tight text-[#111111]">Admin Dashboard</h1>
             <p className="text-sm text-[#787774] mt-1">{todayStr}</p>
           </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={async () => {
+                const toastId = toast.loading("AI is scanning for duplicates...");
+                try {
+                  const res = await fetch("/api/admin/clean-duplicates", { method: "POST" });
+                  const data = await res.json();
+                  if (data.success) {
+                    if (data.deletedCount > 0) {
+                      toast.success(`Removed ${data.deletedCount} duplicate complaints`, { id: toastId });
+                      fetchDashboardData();
+                    } else {
+                      toast.success("No duplicates found. Database is clean!", { id: toastId });
+                    }
+                  } else {
+                    toast.error(data.error || "Failed to clean duplicates", { id: toastId });
+                  }
+                } catch (e) {
+                  toast.error("An error occurred during cleanup", { id: toastId });
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-medium hover:bg-emerald-100 transition-colors whitespace-nowrap"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              AI Clean Duplicates
+            </button>
+          </div>
         </div>
 
         {loading ? (

@@ -79,8 +79,8 @@ export default function VoiceSubmitPage() {
           title: data.prediction.title || data.prediction.summary || text.slice(0, 80),
           description: data.prediction.description || text,
           category: data.prediction.category,
-          building: '',
-          room: '',
+          building: data.prediction.location_building || '',
+          room: [data.prediction.location_room, data.prediction.location_wing].filter(Boolean).join(', '),
           priority: data.prediction.priority,
         })
       } else {
