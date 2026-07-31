@@ -30,13 +30,16 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
         let final = ''
         let interim = ''
         for (let i = 0; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript.trim()
           if (event.results[i].isFinal) {
-            final += event.results[i][0].transcript
+            final += text + ' '
           } else {
-            interim += event.results[i][0].transcript
+            // Overwrite interim instead of concatenating. 
+            // This fixes an Android Chrome bug where interim results are appended as new items.
+            interim = text + ' '
           }
         }
-        setTranscript(final || interim)
+        setTranscript((final + interim).trim())
       }
 
       recognition.onerror = (event: any) => {
