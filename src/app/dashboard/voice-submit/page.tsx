@@ -95,7 +95,9 @@ export default function VoiceSubmitPage() {
       let urgency = 5
       let sentiment = 'frustrated'
 
-      if (lowerText.includes('fan') || lowerText.includes('light') || lowerText.includes('switch') || lowerText.includes('electric') || lowerText.includes('power')) {
+      if (lowerText.includes('fire') || lowerText.includes('smoke') || lowerText.includes('burn') || lowerText.includes('emergency')) {
+        category = 'other'; department = 'Fire & Safety'; priority = 'critical'; urgency = 10; sentiment = 'panicked'
+      } else if (lowerText.includes('fan') || lowerText.includes('light') || lowerText.includes('switch') || lowerText.includes('electric') || lowerText.includes('power')) {
         category = 'electricity'; department = 'Electrical Maintenance'; priority = 'high'; urgency = 7
       } else if (lowerText.includes('water') || lowerText.includes('tap') || lowerText.includes('leak') || lowerText.includes('pipe') || lowerText.includes('plumb')) {
         category = 'water'; department = 'Water Supply & Plumbing'; priority = 'high'; urgency = 8
