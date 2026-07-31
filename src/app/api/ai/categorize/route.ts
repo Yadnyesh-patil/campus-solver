@@ -56,13 +56,15 @@ Respond ONLY with valid JSON. No markdown, no code blocks, just the JSON object.
       return NextResponse.json({ error: 'No AI response', fallback: true }, { status: 503 })
     }
 
-    // Parse the JSON response, handle potential formatting issues
     let parsed
     try {
-      // Remove any markdown code blocks if present
-      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      parsed = JSON.parse(cleaned)
-    } catch {
+      // Find the first '{' and last '}' to extract only the JSON object
+      const start = content.indexOf('{')
+      const end = content.lastIndexOf('}')
+      if (start === -1 || end === -1) throw new Error('No JSON object found')
+      const jsonString = content.substring(start, end + 1)
+      parsed = JSON.parse(jsonString)
+    } catch (e) {
       console.error('Failed to parse AI response:', content)
       return NextResponse.json({ error: 'Failed to parse AI response', fallback: true, raw: content }, { status: 503 })
     }

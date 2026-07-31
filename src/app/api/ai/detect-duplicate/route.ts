@@ -68,11 +68,14 @@ ${existingComplaints.map(c => `- ID: ${c.id}\n  Title: ${c.title}\n  Description
 
     let parsed
     try {
-      const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-      parsed = JSON.parse(cleaned)
-    } catch {
-      console.error('Failed to parse AI response:', content)
-      return NextResponse.json({ error: 'Failed to parse AI response', raw: content }, { status: 503 })
+      const start = content.indexOf('{')
+      const end = content.lastIndexOf('}')
+      if (start === -1 || end === -1) throw new Error('No JSON object found')
+      const jsonString = content.substring(start, end + 1)
+      parsed = JSON.parse(jsonString)
+    } catch (e) {
+      console.error('Failed to parse AI response in duplicate check:', content)
+      return NextResponse.json({ error: 'Failed to parse AI response', is_duplicate: false }, { status: 503 })
     }
 
     return NextResponse.json({
