@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import {
@@ -17,86 +17,26 @@ import {
   Pie,
   Cell
 } from 'recharts';
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
 
-const categoryData = [
-  { name: 'Hostel', count: 15 },
-  { name: 'Electricity', count: 12 },
-  { name: 'Internet', count: 10 },
-  { name: 'Water', count: 8 },
-  { name: 'Mess', count: 5 },
-  { name: 'Other', count: 4 },
-  { name: 'Classroom', count: 3 },
-  { name: 'Security', count: 2 },
-];
-
-const departmentData = [
-  { name: 'Hostel', hours: 12 },
-  { name: 'Electrical', hours: 8 },
-  { name: 'IT/Network', hours: 24 },
-  { name: 'Water', hours: 6 },
-  { name: 'Mess', hours: 4 },
-];
-
-const timeData = [
-  { day: 'Mon', count: 5 },
-  { day: 'Tue', count: 8 },
-  { day: 'Wed', count: 12 },
-  { day: 'Thu', count: 7 },
-  { day: 'Fri', count: 15 },
-  { day: 'Sat', count: 3 },
-  { day: 'Sun', count: 2 },
-];
-
-const statusData = [
-  { name: 'Submitted', value: 15, color: '#FCA5A5' }, 
-  { name: 'Verified', value: 10, color: '#93C5FD' },
-  { name: 'Assigned', value: 20, color: '#FDE047' },
-  { name: 'In Progress', value: 25, color: '#86EFAC' },
-  { name: 'Resolved', value: 25, color: '#6EE7B7' },
-  { name: 'Closed', value: 5, color: '#D1D5DB' },
-];
-
-const campusZones = [
-  { name: 'Hostel A', count: 3 },
-  { name: 'Hostel B', count: 9 },
-  { name: 'Hostel C', count: 2 },
-  { name: 'Academic Block A', count: 5 },
-  { name: 'Academic Block B', count: 4 },
-  { name: 'Library', count: 1 },
-  { name: 'Sports Complex', count: 2 },
-  { name: 'Medical Center', count: 0 },
-  { name: 'Main Canteen', count: 7 },
-  { name: 'Admin Block', count: 1 },
-  { name: 'IT Center', count: 6 },
-  { name: 'Workshop', count: 3 },
-];
+const STATUS_COLORS: Record<string, string> = {
+  submitted: '#FCA5A5', 
+  verified: '#93C5FD',
+  assigned: '#FDE047',
+  in_progress: '#86EFAC',
+  resolved: '#6EE7B7',
+  closed: '#D1D5DB',
+  rejected: '#FCA5A5'
+};
 
 const getZoneColor = (count: number) => {
+  if (count === 0) return 'bg-[#E7F3F1] border-[#0D7A5E]/20 text-[#0D7A5E]';
   if (count <= 2) return 'bg-[#E7F3F1] border-[#0D7A5E]/20 text-[#0D7A5E]';
   if (count <= 5) return 'bg-[#FDF3E1] border-[#A05E03]/20 text-[#A05E03]';
   if (count <= 8) return 'bg-[#FAECEC] border-[#973C38]/20 text-[#973C38]';
   return 'bg-[#F4E0E0] border-[#C93C37]/20 text-[#C93C37]';
 };
-
-const staffData = [
-  { name: 'Amit Sharma', assigned: 45, resolved: 42, avgTime: '4h', rate: 93 },
-  { name: 'Priya Patel', assigned: 38, resolved: 35, avgTime: '6h', rate: 92 },
-  { name: 'Rahul Kumar', assigned: 52, resolved: 40, avgTime: '12h', rate: 77 },
-  { name: 'Neha Singh', assigned: 29, resolved: 28, avgTime: '3h', rate: 96 },
-  { name: 'Vikram Reddy', assigned: 61, resolved: 50, avgTime: '18h', rate: 82 },
-];
-
-const peakHoursData = [
-  { hour: '6AM', count: 2 },
-  { hour: '8AM', count: 15 },
-  { hour: '10AM', count: 22 },
-  { hour: '12PM', count: 8 },
-  { hour: '2PM', count: 12 },
-  { hour: '4PM', count: 10 },
-  { hour: '6PM', count: 18 },
-  { hour: '8PM', count: 25 },
-  { hour: '10PM', count: 5 },
-];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -115,8 +55,147 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
+  const { profile } = useAuth();
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [staffProfiles, setStaffProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+      
+      const [compRes, staffRes] = await Promise.all([
+        supabase.from('complaints').select('*, department:departments!assigned_dept_id(name)'),
+        supabase.from('profiles').select('*').eq('role', 'staff')
+      ]);
+
+      if (compRes.data) setComplaints(compRes.data);
+      if (staffRes.data) setStaffProfiles(staffRes.data);
+      
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  const categoryData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    complaints.forEach(c => {
+      const cat = c.category || 'other';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), count }))
+      .sort((a, b) => b.count - a.count);
+  }, [complaints]);
+
+  const timeData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const last7Days = Array.from({length: 7}, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      return { day: days[d.getDay()], date: d.toISOString().split('T')[0], count: 0 };
+    });
+    
+    complaints.forEach(c => {
+      const dateStr = c.created_at.split('T')[0];
+      const dayEntry = last7Days.find(d => d.date === dateStr);
+      if (dayEntry) dayEntry.count++;
+    });
+    return last7Days;
+  }, [complaints]);
+
+  const departmentData = useMemo(() => {
+    const deptStats: Record<string, { totalTime: number, count: number }> = {};
+    complaints.forEach(c => {
+      if (c.status === 'resolved' && c.resolved_at && c.department) {
+        const timeDiff = new Date(c.resolved_at).getTime() - new Date(c.created_at).getTime();
+        const hours = timeDiff / (1000 * 60 * 60);
+        const dName = c.department.name;
+        if (!deptStats[dName]) deptStats[dName] = { totalTime: 0, count: 0 };
+        deptStats[dName].totalTime += hours;
+        deptStats[dName].count++;
+      }
+    });
+    return Object.entries(deptStats).map(([name, stats]) => ({
+      name,
+      hours: Math.round(stats.totalTime / stats.count)
+    }));
+  }, [complaints]);
+
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    complaints.forEach(c => {
+      counts[c.status] = (counts[c.status] || 0) + 1;
+    });
+    const total = complaints.length || 1;
+    return Object.entries(counts).map(([name, count]) => ({
+      name: name.charAt(0).toUpperCase() + name.replace('_', ' ').slice(1),
+      value: Math.round((count / total) * 100),
+      color: STATUS_COLORS[name] || '#D1D5DB'
+    }));
+  }, [complaints]);
+
+  const campusZones = useMemo(() => {
+    const zones = ['Hostel A', 'Hostel B', 'Hostel C', 'Academic Block A', 'Academic Block B', 'Library', 'Sports Complex', 'Medical Center', 'Main Canteen', 'Admin Block', 'Computer Center', 'Workshop'];
+    const counts: Record<string, number> = {};
+    zones.forEach(z => counts[z] = 0);
+    
+    complaints.forEach(c => {
+      if (c.building) {
+        const b = c.building;
+        if (counts[b] !== undefined) counts[b]++;
+        else {
+          const match = zones.find(z => b.includes(z) || z.includes(b));
+          if (match) counts[match]++;
+        }
+      }
+    });
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
+  }, [complaints]);
+
+  const staffData = useMemo(() => {
+    return staffProfiles.map(staff => {
+      const assigned = complaints.filter(c => c.assigned_staff_id === staff.id);
+      const resolved = assigned.filter(c => c.status === 'resolved');
+      const rate = assigned.length ? Math.round((resolved.length / assigned.length) * 100) : 0;
+      
+      let avgTime = 0;
+      if (resolved.length) {
+        const totalTime = resolved.reduce((acc, c) => {
+          if (c.resolved_at) return acc + (new Date(c.resolved_at).getTime() - new Date(c.created_at).getTime());
+          return acc;
+        }, 0);
+        avgTime = Math.round(totalTime / resolved.length / (1000 * 60 * 60));
+      }
+      
+      return {
+        name: staff.full_name,
+        assigned: assigned.length,
+        resolved: resolved.length,
+        avgTime: `${avgTime}h`,
+        rate
+      };
+    }).sort((a, b) => b.assigned - a.assigned).slice(0, 5);
+  }, [complaints, staffProfiles]);
+
+  const peakHoursData = useMemo(() => {
+    const hours = Array.from({length: 24}, (_, i) => ({ hour: `${i}:00`, count: 0 }));
+    complaints.forEach(c => {
+      const h = new Date(c.created_at).getHours();
+      hours[h].count++;
+    });
+    const grouped = [];
+    for(let i = 6; i <= 22; i+=2) {
+      const count = hours[i].count + (hours[i+1]?.count || 0);
+      const ampm = i < 12 ? 'AM' : (i === 12 ? 'PM' : 'PM');
+      const hr = i > 12 ? i - 12 : i;
+      grouped.push({ hour: `${hr}${ampm}`, count });
+    }
+    return grouped;
+  }, [complaints]);
+
   return (
-    <DashboardLayout role="admin" userName="Dr. Rajesh Kumar" userEmail="admin@campus.edu">
+    <DashboardLayout role="admin" userName={profile?.full_name || 'Admin'} userEmail={profile?.email || ''}>
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 bg-[#F7F6F3] min-h-[100dvh] font-[family-name:var(--font-geist-sans)]">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold text-[#111111]">Analytics Overview</h1>
