@@ -45,7 +45,7 @@ export function DuplicateDetector({ title, description, onStatusChange }: Duplic
           
           if (res.ok) {
             const result = await res.json()
-            if (result.isDuplicate && result.similarity > 70) {
+            if (result.isDuplicate && result.similarity >= 90) {
               setHasDuplicate(true)
               setDuplicateData(result)
               if (onStatusChange) onStatusChange(true)
@@ -104,7 +104,7 @@ export function DuplicateDetector({ title, description, onStatusChange }: Duplic
               <div className="flex-1">
                 <h4 className="text-sm font-semibold text-amber-900">Potential Duplicate Detected</h4>
                 <p className="text-sm font-bold text-red-600 mt-1 mb-3">
-                  This complaint is already post. Spam complaints are removed.
+                  This complaint is very similar (90%+ match) to an existing one. Duplicate submissions are blocked.
                 </p>
                 
                 <div className="bg-white/60 rounded-lg p-3 border border-amber-200/50 mb-3">

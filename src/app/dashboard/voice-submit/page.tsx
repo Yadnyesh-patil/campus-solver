@@ -142,7 +142,7 @@ export default function VoiceSubmitPage() {
 
   const handleSubmit = async () => {
     if (isDuplicate) {
-      toast.error('This complaint is already post. Spam complaints are removed.')
+      toast.error('This complaint is 90%+ similar to an existing one and has been blocked.')
       return
     }
     if (!user) { toast.error('You must be logged in'); return }

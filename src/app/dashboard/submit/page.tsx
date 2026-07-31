@@ -128,7 +128,7 @@ export default function SubmitComplaintPage() {
   
   const validateStep1 = () => {
     if (isDuplicate) {
-      toast.error('This complaint is already post. Spam complaints are removed.')
+      toast.error('This complaint is 90%+ similar to an existing one and has been blocked.')
       return false
     }
     const newErrors: Record<string, string> = {}
