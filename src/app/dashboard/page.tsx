@@ -88,7 +88,7 @@ export default function DashboardPage() {
         </div>
         <Link 
           href="/dashboard/submit"
-          className="inline-flex items-center justify-center gap-2 bg-[#111111] text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-black transition-colors"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#111111] text-white px-5 py-3 sm:py-2.5 rounded-lg text-sm font-medium hover:bg-black transition-colors"
         >
           <PlusIcon className="w-4 h-4" />
           Submit New Complaint
@@ -152,7 +152,7 @@ export default function DashboardPage() {
             View all <ChevronRightIcon className="w-4 h-4 ml-0.5" />
           </Link>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto w-full">
           {loading ? (
             <div className="p-8 text-center text-sm text-[#787774]">Loading complaints...</div>
           ) : complaints.length === 0 ? (

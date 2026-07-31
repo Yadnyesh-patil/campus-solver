@@ -205,8 +205,8 @@ export function DashboardLayout({ children, role, userName, userEmail }: Dashboa
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 pt-16 md:pt-0 min-h-[100dvh]">
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <main className="flex-1 min-w-0 md:ml-64 pt-16 md:pt-0 min-h-[100dvh] w-full">
+        <div className="p-4 md:p-8 max-w-6xl mx-auto w-full">
           {children}
         </div>
       </main>
