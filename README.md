@@ -84,8 +84,8 @@ graph TD
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Yadnyesh-patil/RUNTIME-TERROR-SHIVAM-AGRAWAL.git
-   cd RUNTIME-TERROR-SHIVAM-AGRAWAL
+   git clone https://github.com/Yadnyesh-patil/RUNTIME-TERROR.git
+   cd RUNTIME-TERROR
    ```
 
 2. **Install dependencies**
@@ -115,7 +115,6 @@ graph TD
 | Name | Role | GitHub |
 |------|------|--------|
 | **Yadnyesh Patil** | Full Stack + AI Integration | [@Yadnyesh-patil](https://github.com/Yadnyesh-patil) |
-| **Shivam Agrawal** | Backend + Database + Analytics | [@ShivamAgrawal](https://github.com/ShivamAgrawal) |
 | **Yug Wankhede** | Frontend + UI/UX + Timeline | [@YugWankhede](https://github.com/YugWankhede) |
 
 ## 🎯 Evaluation Criteria Alignment
